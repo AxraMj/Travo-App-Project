@@ -113,6 +113,26 @@ export const authAPI = {
       throw error.response?.data?.message || 'Failed to reset password';
     }
   },
+
+  createGuide: async (guideData) => {
+    const response = await api.post('/guides', guideData);
+    return response.data;
+  },
+
+  likeGuide: async (guideId) => {
+    const response = await api.post(`/guides/${guideId}/like`);
+    return response.data;
+  },
+
+  dislikeGuide: async (guideId) => {
+    const response = await api.post(`/guides/${guideId}/dislike`);
+    return response.data;
+  },
+
+  getGuides: async () => {
+    const response = await api.get('/guides');
+    return response.data;
+  },
 };
 
 export const postsAPI = {

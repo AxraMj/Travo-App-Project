@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  Dimensions
+  Dimensions,
+  TextInput,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,9 +18,53 @@ import { useAuth } from '../../context/AuthContext';
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
 
+const GuideCard = ({ guide, onLike, onDislike }) => (
+  <View style={styles.guideCard}>
+    <View style={styles.guideHeader}>
+      <Image 
+        source={{ uri: guide.userImage }} 
+        style={styles.guideUserImage}
+        defaultSource={<Ionicons name="person-circle" size={32} color="#ffffff" />}
+      />
+      <Text style={styles.guideUsername}>{guide.username}</Text>
+    </View>
+    
+    <Text style={styles.guideText}>{guide.text}</Text>
+    
+    <View style={styles.guideActions}>
+      <TouchableOpacity 
+        style={styles.actionButton} 
+        onPress={() => onLike(guide.id)}
+      >
+        <Ionicons 
+          name={guide.hasLiked ? "heart" : "heart-outline"} 
+          size={24} 
+          color={guide.hasLiked ? "#ff4444" : "#ffffff"} 
+        />
+        <Text style={styles.actionCount}>{guide.likes}</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.actionButton} 
+        onPress={() => onDislike(guide.id)}
+      >
+        <Ionicons 
+          name={guide.hasDisliked ? "thumbs-down" : "thumbs-down-outline"} 
+          size={24} 
+          color={guide.hasDisliked ? "#4444ff" : "#ffffff"} 
+        />
+        <Text style={styles.actionCount}>{guide.dislikes}</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
 export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('posts');
+  const [isCreatingGuide, setIsCreatingGuide] = useState(false);
+  const [guideText, setGuideText] = useState('');
+  const [guides, setGuides] = useState([]);
 
   // Dummy data - replace with actual data from your backend
   const stats = {
@@ -29,6 +75,86 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const posts = [];
+
+  const handleSubmitGuide = async () => {
+    if (!guideText.trim()) return;
+
+    try {
+      // TODO: Replace with your actual API call
+      const newGuide = {
+        id: Date.now().toString(), // Replace with actual ID from backend
+        text: guideText,
+        username: user?.username || 'Username',
+        userImage: user?.profileImage,
+        likes: 0,
+        dislikes: 0,
+        hasLiked: false,
+        hasDisliked: false,
+        createdAt: new Date().toISOString()
+      };
+
+      // Add to database
+      // await authAPI.createGuide(newGuide);
+
+      // Update local state
+      setGuides(prevGuides => [newGuide, ...prevGuides]);
+      setGuideText('');
+      setIsCreatingGuide(false);
+    } catch (error) {
+      console.error('Error creating guide:', error);
+      Alert.alert('Error', 'Failed to create guide. Please try again.');
+    }
+  };
+
+  const handleLike = async (guideId) => {
+    try {
+      // TODO: Replace with your actual API call
+      // await authAPI.likeGuide(guideId);
+
+      setGuides(prevGuides => prevGuides.map(guide => {
+        if (guide.id === guideId) {
+          if (guide.hasLiked) {
+            return { ...guide, hasLiked: false, likes: guide.likes - 1 };
+          }
+          return { 
+            ...guide, 
+            hasLiked: true, 
+            likes: guide.likes + 1,
+            hasDisliked: false,
+            dislikes: guide.hasDisliked ? guide.dislikes - 1 : guide.dislikes
+          };
+        }
+        return guide;
+      }));
+    } catch (error) {
+      console.error('Error liking guide:', error);
+    }
+  };
+
+  const handleDislike = async (guideId) => {
+    try {
+      // TODO: Replace with your actual API call
+      // await authAPI.dislikeGuide(guideId);
+
+      setGuides(prevGuides => prevGuides.map(guide => {
+        if (guide.id === guideId) {
+          if (guide.hasDisliked) {
+            return { ...guide, hasDisliked: false, dislikes: guide.dislikes - 1 };
+          }
+          return { 
+            ...guide, 
+            hasDisliked: true, 
+            dislikes: guide.dislikes + 1,
+            hasLiked: false,
+            likes: guide.hasLiked ? guide.likes - 1 : guide.likes
+          };
+        }
+        return guide;
+      }));
+    } catch (error) {
+      console.error('Error disliking guide:', error);
+    }
+  };
 
   const renderPost = ({ item }) => (
     <TouchableOpacity style={styles.postContainer}>
@@ -48,6 +174,62 @@ export default function ProfileScreen({ navigation }) {
     </TouchableOpacity>
   );
 
+  const renderGuideContent = () => {
+    if (isCreatingGuide) {
+      return (
+        <View style={styles.createGuideForm}>
+          <TextInput
+            style={styles.guideInput}
+            placeholder="Share your travel tips..."
+            placeholderTextColor="rgba(255,255,255,0.5)"
+            value={guideText}
+            onChangeText={setGuideText}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity 
+            style={[styles.submitButton, !guideText.trim() && styles.submitButtonDisabled]}
+            onPress={handleSubmitGuide}
+            disabled={!guideText.trim()}
+          >
+            <Text style={styles.submitText}>Post</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.guidesContainer}>
+        {guides.length === 0 ? (
+          <View style={styles.noPostsContainer}>
+            <Ionicons name="book-outline" size={50} color="rgba(255,255,255,0.5)" />
+            <Text style={styles.noPostsText}>No guides yet</Text>
+            <Text style={styles.noPostsSubText}>Share your travel tips and recommendations!</Text>
+          </View>
+        ) : (
+          <View>
+            {guides.map(guide => (
+              <GuideCard 
+                key={guide.id}
+                guide={guide}
+                onLike={handleLike}
+                onDislike={handleDislike}
+              />
+            ))}
+          </View>
+        )}
+        
+        {/* Floating create button */}
+        <TouchableOpacity 
+          style={styles.floatingCreateButton}
+          onPress={() => setIsCreatingGuide(true)}
+        >
+          <Ionicons name="pencil" size={24} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderContent = () => {
     if (posts.length === 0) {
       return (
@@ -59,18 +241,7 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.noPostsSubText}>Share your travel adventures with the world!</Text>
             </>
           ) : (
-            <>
-              <Ionicons name="book-outline" size={50} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.noPostsText}>No guides yet</Text>
-              <Text style={styles.noPostsSubText}>Share your travel tips and recommendations!</Text>
-              <TouchableOpacity 
-                style={styles.createGuideButton}
-                onPress={() => navigation.navigate('CreateGuide')}
-              >
-                <Ionicons name="pencil" size={20} color="#ffffff" />
-                <Text style={styles.createGuideText}>Create Guide</Text>
-              </TouchableOpacity>
-            </>
+            renderGuideContent()
           )}
         </View>
       );
@@ -341,19 +512,92 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-  createGuideButton: {
+  guidesContainer: {
+    padding: 16,
+  },
+  guideCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  guideHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginTop: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginBottom: 12,
   },
-  createGuideText: {
+  guideUserImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  guideUsername: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  guideText: {
+    color: '#ffffff',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  guideActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionCount: {
+    color: '#ffffff',
+    fontSize: 14,
+  },
+  floatingCreateButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1DA1F2', // Twitter blue color
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5, // Android shadow
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  createGuideForm: {
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    margin: 16,
+  },
+  guideInput: {
+    color: '#ffffff',
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  submitButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    padding: 12,
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '500',
