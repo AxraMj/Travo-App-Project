@@ -52,9 +52,26 @@ export default function ProfileScreen({ navigation }) {
     if (posts.length === 0) {
       return (
         <View style={styles.noPostsContainer}>
-          <Ionicons name="images-outline" size={50} color="rgba(255,255,255,0.5)" />
-          <Text style={styles.noPostsText}>No posts yet</Text>
-          <Text style={styles.noPostsSubText}>Share your travel adventures with the world!</Text>
+          {activeTab === 'posts' ? (
+            <>
+              <Ionicons name="images-outline" size={50} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.noPostsText}>No posts yet</Text>
+              <Text style={styles.noPostsSubText}>Share your travel adventures with the world!</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="book-outline" size={50} color="rgba(255,255,255,0.5)" />
+              <Text style={styles.noPostsText}>No guides yet</Text>
+              <Text style={styles.noPostsSubText}>Share your travel tips and recommendations!</Text>
+              <TouchableOpacity 
+                style={styles.createGuideButton}
+                onPress={() => navigation.navigate('CreateGuide')}
+              >
+                <Ionicons name="pencil" size={20} color="#ffffff" />
+                <Text style={styles.createGuideText}>Create Guide</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       );
     }
@@ -136,7 +153,7 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Content Tabs */}
+          {/* Modified Content Tabs section with just Posts and Guides */}
           <View style={styles.tabContainer}>
             <TouchableOpacity 
               style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
@@ -147,16 +164,18 @@ export default function ProfileScreen({ navigation }) {
                 size={24} 
                 color={activeTab === 'posts' ? '#ffffff' : 'rgba(255,255,255,0.7)'} 
               />
+              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>Posts</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.tab, activeTab === 'saved' && styles.activeTab]}
-              onPress={() => setActiveTab('saved')}
+              style={[styles.tab, activeTab === 'guides' && styles.activeTab]}
+              onPress={() => setActiveTab('guides')}
             >
               <Ionicons 
-                name="bookmark-outline" 
+                name="book-outline" 
                 size={24} 
-                color={activeTab === 'saved' ? '#ffffff' : 'rgba(255,255,255,0.7)'} 
+                color={activeTab === 'guides' ? '#ffffff' : 'rgba(255,255,255,0.7)'} 
               />
+              <Text style={[styles.tabText, activeTab === 'guides' && styles.activeTabText]}>Guides</Text>
             </TouchableOpacity>
           </View>
 
@@ -260,11 +279,22 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  tabText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
   },
   activeTab: {
     borderTopWidth: 2,
     borderTopColor: '#ffffff',
+  },
+  activeTabText: {
+    color: '#ffffff',
+    fontWeight: '500',
   },
   postsGrid: {
     width: '100%',
@@ -310,5 +340,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+  },
+  createGuideButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  createGuideText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 }); 
