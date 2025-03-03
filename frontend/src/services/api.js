@@ -113,4 +113,28 @@ export const authAPI = {
       throw error.response?.data?.message || 'Failed to reset password';
     }
   },
+};
+
+export const postsAPI = {
+  getPosts: async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/posts`, {
+        headers: { Authorization: `Bearer ${await getToken()}` }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  getUserPosts: async (userId) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/posts/user/${userId}`, {
+        headers: { Authorization: `Bearer ${await getToken()}` }
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  }
 }; 

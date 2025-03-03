@@ -8,6 +8,8 @@ import RegisterScreen from './src/screens/auth/RegisterScreen';
 import ProfileSetupScreen from './src/screens/auth/ProfileSetupScreen';
 import CreatorHomeScreen from './src/screens/creator/HomeScreen';
 import ExplorerHomeScreen from './src/screens/explorer/HomeScreen';
+import SearchScreen from './src/screens/shared/SearchScreen';
+import SavedScreen from './src/screens/shared/SavedScreen';
 import { AuthProvider } from './src/context/AuthContext';
 
 const Stack = createNativeStackNavigator();
@@ -34,6 +36,8 @@ export default function App() {
           <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
           <Stack.Screen name="CreatorHome" component={CreatorHomeScreen} />
           <Stack.Screen name="ExplorerHome" component={ExplorerHomeScreen} />
+          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="Saved" component={SavedScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
