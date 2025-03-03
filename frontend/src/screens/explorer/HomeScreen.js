@@ -79,6 +79,12 @@ export default function ExplorerHomeScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
+          <Image 
+            source={require('../../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
           <TouchableOpacity 
             style={styles.followingButton}
             onPress={() => navigation.navigate('Following')}
@@ -163,6 +169,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 10,
+  },
+  logo: {
+    width: 100,  // Adjust size as needed
+    height: 70,  // Adjust size as needed
   },
   profileImage: {
     width: 40,
