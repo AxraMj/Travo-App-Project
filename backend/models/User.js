@@ -29,7 +29,8 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
   profileImage: {
-    type: String
+    type: String,
+    required: true
   },
   createdAt: {
     type: Date,

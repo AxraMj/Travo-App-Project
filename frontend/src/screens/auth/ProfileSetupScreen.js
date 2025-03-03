@@ -9,6 +9,7 @@ import {
   Image,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -24,26 +25,42 @@ export default function ProfileSetupScreen({ navigation, route }) {
   const [username, setUsername] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
 
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
+      if (!result.canceled) {
+        setProfileImage(result.assets[0].uri);
+        // Clear any existing profile image error
+        if (errors.profileImage) {
+          setErrors(prev => ({ ...prev, profileImage: null }));
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
     }
   };
 
   const validateForm = () => {
     let newErrors = {};
 
-    if (accountType === 'creator' && !username.trim()) {
-      newErrors.username = 'Username is required';
+    if (accountType === 'creator') {
+      if (!username.trim()) {
+        newErrors.username = 'Username is required';
+      } else if (username.length < 3) {
+        newErrors.username = 'Username must be at least 3 characters';
+      } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        newErrors.username = 'Username can only contain letters, numbers, and underscores';
+      }
     }
 
     if (!profileImage) {
@@ -56,6 +73,7 @@ export default function ProfileSetupScreen({ navigation, route }) {
 
   const handleComplete = async () => {
     if (validateForm()) {
+      setIsLoading(true);
       try {
         const registrationData = {
           ...userData,
@@ -64,22 +82,27 @@ export default function ProfileSetupScreen({ navigation, route }) {
           accountType
         };
 
-        console.log('Attempting registration with:', registrationData);
+        console.log('Attempting registration with:', {
+          ...registrationData,
+          profileImage: profileImage ? 'Image data present' : 'No image'
+        });
         
-        const response = await authAPI.register(registrationData);
+        const response = await register(registrationData);
         console.log('Registration successful:', response);
 
         if (accountType === 'creator') {
-          navigation.navigate('CreatorHome');
+          navigation.replace('CreatorHome');
         } else {
-          navigation.navigate('ExplorerHome');
+          navigation.replace('ExplorerHome');
         }
       } catch (error) {
         console.error('Registration error:', error);
         Alert.alert(
           'Registration Failed',
-          error.message || 'An error occurred during registration'
+          error.toString()
         );
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -168,10 +191,15 @@ export default function ProfileSetupScreen({ navigation, route }) {
             )}
 
             <TouchableOpacity 
-              style={styles.button}
+              style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleComplete}
+              disabled={isLoading}
             >
-              <Text style={styles.buttonText}>Complete Setup</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#232526" />
+              ) : (
+                <Text style={styles.buttonText}>Complete Setup</Text>
+              )}
             </TouchableOpacity>
 
             <Text style={styles.skipText}>
@@ -343,5 +371,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     marginTop: 20,
+  },
+  buttonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
 });

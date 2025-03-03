@@ -6,16 +6,64 @@ import {
   TouchableOpacity,
   Dimensions,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const { login } = useAuth();
+
+  const validateForm = () => {
+    let newErrors = {};
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = 'Please enter a valid email';
+    }
+
+    // Password validation
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleLogin = async () => {
+    if (validateForm()) {
+      setIsLoading(true);
+      try {
+        const user = await login({ email, password });
+        if (user.accountType === 'creator') {
+          navigation.replace('CreatorHome');
+        } else {
+          navigation.replace('ExplorerHome');
+        }
+      } catch (error) {
+        Alert.alert(
+          'Login Failed',
+          error.toString()
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   const handleBack = () => {
     navigation.dispatch({
@@ -47,33 +95,72 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.title}>Welcome Back</Text>
           
           <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#999"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={[styles.input, errors.email && styles.inputError]}
+                placeholder="Email"
+                placeholderTextColor="#999"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errors.email) setErrors({...errors, email: null});
+                }}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!isLoading}
+              />
+              {errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
+            </View>
             
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.inputWrapper}>
+              <View style={[styles.passwordContainer, errors.password && styles.inputError]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Password"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password) setErrors({...errors, password: null});
+                  }}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                />
+                <TouchableOpacity 
+                  style={styles.visibilityIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  <Ionicons 
+                    name={showPassword ? "eye-off" : "eye"} 
+                    size={24} 
+                    color="rgba(255,255,255,0.7)" 
+                  />
+                </TouchableOpacity>
+              </View>
+              {errors.password && (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              )}
+            </View>
 
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => {}}>
               <Text style={styles.forgotPassword}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.button}>
-              <Text style={styles.buttonText}>Login</Text>
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#232526" />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -113,12 +200,40 @@ const styles = StyleSheet.create({
     gap: 15,
     marginBottom: 30,
   },
+  inputWrapper: {
+    gap: 5,
+  },
   input: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     padding: 15,
     borderRadius: 10,
     color: '#ffffff',
     fontSize: 16,
+  },
+  inputError: {
+    borderColor: '#ff4444',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 12,
+    marginLeft: 5,
+  },
+  passwordContainer: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 15,
+    color: '#ffffff',
+    fontSize: 16,
+  },
+  visibilityIcon: {
+    padding: 10,
+    marginRight: 5,
   },
   forgotPassword: {
     color: '#ffffff',
@@ -139,5 +254,8 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 }); 

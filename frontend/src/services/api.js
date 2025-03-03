@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as FileSystem from 'expo-file-system';
 
 // Example: if your IP is 192.168.1.5
 const API_URL = 'http://192.168.31.117:5000/api';  // Replace with YOUR IP
@@ -11,14 +12,29 @@ export const api = axios.create({
   timeout: 10000, // Add timeout
 });
 
-// Add error logging
+// Add request/response interceptors for better debugging
 api.interceptors.request.use(
   config => {
-    console.log('Making request to:', config.url);
+    console.log('API Request:', {
+      url: config.url,
+      method: config.method,
+      data: config.data
+    });
     return config;
   },
   error => {
-    console.log('Request error:', error);
+    console.error('Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  response => {
+    console.log('API Response:', response.data);
+    return response;
+  },
+  error => {
+    console.error('Response Error:', error.response || error);
     return Promise.reject(error);
   }
 );
@@ -26,22 +42,75 @@ api.interceptors.request.use(
 export const authAPI = {
   register: async (userData) => {
     try {
-      // Log the URL we're trying to reach
-      console.log('Attempting to connect to:', API_URL + '/auth/register');
+      console.log('Starting registration process...');
       
-      const response = await api.post('/auth/register', userData);
+      // Handle profile image
+      let imageData = null;
+      if (userData.profileImage) {
+        try {
+          const base64Image = await FileSystem.readAsStringAsync(
+            userData.profileImage, 
+            { encoding: FileSystem.EncodingType.Base64 }
+          );
+          imageData = `data:image/jpeg;base64,${base64Image}`;
+        } catch (error) {
+          console.error('Error processing image:', error);
+          throw new Error('Failed to process profile image');
+        }
+      }
+
+      // Prepare registration data
+      const registrationData = {
+        ...userData,
+        profileImage: imageData
+      };
+
+      console.log('Sending registration request...');
+      const response = await api.post('/auth/register', registrationData);
+      console.log('Registration successful');
       return response.data;
     } catch (error) {
-      // More detailed error logging
-      console.error('Full error object:', error);
-      console.error('Error response:', error.response);
-      console.error('Error request:', error.request);
-      throw error.response?.data?.message || 'Registration failed';
+      console.error('Registration error:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        throw error.response.data.message || 'Registration failed';
+      }
+      throw error.message || 'Registration failed';
     }
   },
 
   login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
-    return response.data;
+    try {
+      console.log('Attempting to login:', API_URL + '/auth/login');
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      console.error('Login error:', error.response?.data || error.message);
+      throw error.response?.data?.message || 'Login failed. Please try again.';
+    }
+  },
+
+  requestPasswordReset: async (data) => {
+    try {
+      console.log('Requesting password reset:', data);
+      const response = await api.post('/auth/request-reset', data);
+      console.log('Reset request response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Reset request error:', error.response?.data || error.message);
+      throw error.response?.data?.message || 'Failed to process request';
+    }
+  },
+
+  resetPassword: async (data) => {
+    try {
+      console.log('Resetting password:', data);
+      const response = await api.post('/auth/reset-password', data);
+      console.log('Reset password response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Reset password error:', error.response?.data || error.message);
+      throw error.response?.data?.message || 'Failed to reset password';
+    }
   },
 }; 
