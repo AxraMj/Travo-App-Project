@@ -68,6 +68,7 @@ export default function CreatorHomeScreen({ navigation }) {
         <View style={styles.header}>
           <TouchableOpacity 
             onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.7}
           >
             {user?.profileImage ? (
               <Image 

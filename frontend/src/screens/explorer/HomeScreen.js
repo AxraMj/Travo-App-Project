@@ -66,9 +66,7 @@ export default function ExplorerHomeScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('Profile')}
-          >
+          <View>
             {user?.profileImage ? (
               <Image 
                 source={{ uri: user.profileImage }} 
@@ -77,7 +75,7 @@ export default function ExplorerHomeScreen({ navigation }) {
             ) : (
               <Ionicons name="person-circle" size={32} color="#ffffff" />
             )}
-          </TouchableOpacity>
+          </View>
 
           <Image 
             source={require('../../../assets/logo.png')}
