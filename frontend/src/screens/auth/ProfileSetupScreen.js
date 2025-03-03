@@ -8,11 +8,14 @@ import {
   TextInput,
   Image,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../../context/AuthContext';
+import { authAPI } from '../../services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,6 +24,7 @@ export default function ProfileSetupScreen({ navigation, route }) {
   const [username, setUsername] = useState('');
   const [profileImage, setProfileImage] = useState(null);
   const [errors, setErrors] = useState({});
+  const { register } = useAuth();
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -50,13 +54,32 @@ export default function ProfileSetupScreen({ navigation, route }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (validateForm()) {
-      // Navigate to the appropriate home screen based on account type
-      if (accountType === 'creator') {
-        navigation.navigate('CreatorHome');
-      } else {
-        navigation.navigate('ExplorerHome');
+      try {
+        const registrationData = {
+          ...userData,
+          username: accountType === 'creator' ? username : undefined,
+          profileImage,
+          accountType
+        };
+
+        console.log('Attempting registration with:', registrationData);
+        
+        const response = await authAPI.register(registrationData);
+        console.log('Registration successful:', response);
+
+        if (accountType === 'creator') {
+          navigation.navigate('CreatorHome');
+        } else {
+          navigation.navigate('ExplorerHome');
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        Alert.alert(
+          'Registration Failed',
+          error.message || 'An error occurred during registration'
+        );
       }
     }
   };
