@@ -39,4 +39,18 @@ export const showErrorAlert = (title, error) => {
     handleApiError(error),
     [{ text: 'OK', style: 'default' }]
   );
+};
+
+// Add more specific error handlers
+export const handleNetworkError = async (error, retry) => {
+  if (!navigator.onLine) {
+    Alert.alert(
+      'No Internet Connection',
+      'Please check your connection and try again',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Retry', onPress: retry }
+      ]
+    );
+  }
 }; 

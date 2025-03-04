@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Example: if your IP is 192.168.1.5
 const API_URL = 'http://192.168.31.117:5000/api';  // Replace with YOUR IP
@@ -38,6 +39,17 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Add token handling
+const getAuthHeader = async () => {
+  const token = await AsyncStorage.getItem('token');
+  return {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  };
+};
 
 export const authAPI = {
   register: async (userData) => {
@@ -155,6 +167,77 @@ export const postsAPI = {
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
+    }
+  }
+};
+
+export const guideAPI = {
+  createGuide: async (guideData) => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      console.log('Token for guide creation:', token);
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Create a new instance for this specific request
+      const apiInstance = axios.create({
+        baseURL: API_URL,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      console.log('Creating guide with data:', {
+        text: guideData.text,
+        category: guideData.category
+      });
+
+      const response = await apiInstance.post('/guides', guideData);
+      console.log('Guide created successfully:', response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Guide creation error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+
+      // Throw a more specific error message
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 400) {
+        throw new Error(error.response.data.message || 'Invalid guide data');
+      } else {
+        throw new Error(error.response?.data?.message || error.message || 'Failed to create guide');
+      }
+    }
+  },
+
+  getGuides: async () => {
+    try {
+      const config = await getAuthHeader();
+      const response = await api.get('/guides', config);
+      return response.data;
+    } catch (error) {
+      console.error('Get guides error:', error);
+      throw error.response?.data?.message || 'Failed to fetch guides';
+    }
+  },
+
+  getUserGuides: async (userId) => {
+    try {
+      const config = await getAuthHeader();
+      const response = await api.get(`/guides/user/${userId}`, config);
+      return response.data;
+    } catch (error) {
+      console.error('Get user guides error:', error);
+      throw error.response?.data?.message || 'Failed to fetch user guides';
     }
   }
 }; 

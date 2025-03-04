@@ -14,12 +14,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { guideAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
 
 const GuideCard = ({ guide, onLike, onDislike }) => (
-  <View style={styles.guideCard}>
+  <View style={styles.guideCard} key={guide._id}>
     <View style={styles.guideHeader}>
       <Image 
         source={{ uri: guide.userImage }} 
@@ -65,6 +66,7 @@ export default function ProfileScreen({ navigation }) {
   const [isCreatingGuide, setIsCreatingGuide] = useState(false);
   const [guideText, setGuideText] = useState('');
   const [guides, setGuides] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Dummy data - replace with actual data from your backend
   const stats = {
@@ -77,32 +79,41 @@ export default function ProfileScreen({ navigation }) {
   const posts = [];
 
   const handleSubmitGuide = async () => {
-    if (!guideText.trim()) return;
+    if (!guideText.trim()) {
+      return;
+    }
 
     try {
-      // TODO: Replace with your actual API call
-      const newGuide = {
-        id: Date.now().toString(), // Replace with actual ID from backend
-        text: guideText,
-        username: user?.username || 'Username',
-        userImage: user?.profileImage,
+      setIsLoading(true);
+      
+      const newGuide = await guideAPI.createGuide({
+        text: guideText.trim()
+      });
+      
+      // Format the guide for display
+      const formattedGuide = {
+        _id: newGuide._id,
+        text: newGuide.text,
+        username: user.username,
+        userImage: user.profileImage,
         likes: 0,
         dislikes: 0,
         hasLiked: false,
-        hasDisliked: false,
-        createdAt: new Date().toISOString()
+        hasDisliked: false
       };
-
-      // Add to database
-      // await authAPI.createGuide(newGuide);
-
-      // Update local state
-      setGuides(prevGuides => [newGuide, ...prevGuides]);
+      
+      setGuides(prevGuides => [formattedGuide, ...prevGuides]);
       setGuideText('');
       setIsCreatingGuide(false);
+      
     } catch (error) {
-      console.error('Error creating guide:', error);
-      Alert.alert('Error', 'Failed to create guide. Please try again.');
+      console.error('Guide creation error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to create guide. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -208,12 +219,12 @@ export default function ProfileScreen({ navigation }) {
           </View>
         ) : (
           <View>
-            {guides.map(guide => (
-              <GuideCard 
-                key={guide.id}
+            {guides.map((guide) => (
+              <GuideCard
+                key={guide._id}
                 guide={guide}
-                onLike={handleLike}
-                onDislike={handleDislike}
+                onLike={() => handleLike(guide._id)}
+                onDislike={() => handleDislike(guide._id)}
               />
             ))}
           </View>
