@@ -331,7 +331,16 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
             <Text style={styles.headerTitle}>{userData?.fullName || 'Profile'}</Text>
             <TouchableOpacity 
-              onPress={() => navigation.navigate('EditProfile')}
+              onPress={() => navigation.navigate('EditProfile', {
+                currentProfile: {
+                  fullName: userData?.fullName || '',
+                  username: userData?.username || '',
+                  bio: profileData?.bio || '',
+                  location: profileData?.location || '',
+                  profileImage: userData?.profileImage || null,
+                  socialLinks: profileData?.socialLinks || {}
+                }
+              })}
               style={styles.editButton}
             >
               <Ionicons name="pencil" size={20} color="#ffffff" />

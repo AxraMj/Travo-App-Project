@@ -15,15 +15,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 
-export default function EditProfileScreen({ navigation }) {
+export default function EditProfileScreen({ navigation, route }) {
   const { user, updateUserProfile } = useAuth();
+  const currentProfile = route.params?.currentProfile || {};
   const [isLoading, setIsLoading] = useState(false);
   const [profileData, setProfileData] = useState({
-    fullName: user?.fullName || '',
-    username: user?.username || '',
-    bio: user?.bio || '',
-    location: user?.location || '',
-    profileImage: user?.profileImage || null,
+    fullName: currentProfile.fullName || '',
+    username: currentProfile.username || '',
+    bio: currentProfile.bio || '',
+    location: currentProfile.location || '',
+    profileImage: currentProfile.profileImage || null,
+    socialLinks: currentProfile.socialLinks || {}
   });
 
   const pickImage = async () => {
