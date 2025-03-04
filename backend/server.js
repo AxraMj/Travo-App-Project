@@ -5,6 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const guideRoutes = require('./routes/guide');
 const auth = require('./middleware/auth');
+const profileRoutes = require('./routes/profile');
 
 const app = express();
 
@@ -24,13 +25,28 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1); // Exit if cannot connect to database
   });
 
+// Add this before your routes
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, {
+    body: req.body,
+    query: req.query,
+    params: req.params,
+  });
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/guides', auth, guideRoutes);
+app.use('/api/profiles', auth, profileRoutes);
 
-// Global error handler
+// Add this after your routes
+app.use((req, res, next) => {
+  res.status(404).json({ message: `Cannot ${req.method} ${req.path}` });
+});
+
 app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
+  console.error('Error:', err);
   res.status(500).json({
     message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err.toString() : undefined

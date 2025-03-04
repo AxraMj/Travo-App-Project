@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from '../services/api';
+import { authAPI, profileAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -43,12 +43,15 @@ export const AuthProvider = ({ children }) => {
 
   const updateUserProfile = async (profileData) => {
     try {
-      const response = await authAPI.updateProfile(profileData);
-      await AsyncStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
-      return response.user;
+      const response = await profileAPI.updateProfile(profileData);
+      if (response.user) {
+        await AsyncStorage.setItem('user', JSON.stringify(response.user));
+        setUser(response.user);
+      }
+      return response;
     } catch (error) {
-      throw error.response?.data?.message || 'Failed to update profile';
+      console.error('Profile update error:', error);
+      throw error.toString();
     }
   };
 

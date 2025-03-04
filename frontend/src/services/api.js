@@ -272,4 +272,69 @@ export const guideAPI = {
       throw error.response?.data?.message || 'Failed to fetch user guides';
     }
   }
+};
+
+export const profileAPI = {
+  getProfile: async (userId) => {
+    try {
+      const config = await getAuthHeader();
+      const response = await api.get(`/profiles/${userId}`, config);
+      return response.data;
+    } catch (error) {
+      console.error('Get profile error:', error.response?.data || error);
+      throw error.response?.data?.message || 'Failed to fetch profile';
+    }
+  },
+
+  updateProfile: async (profileData) => {
+    try {
+      const config = await getAuthHeader();
+      
+      // Handle image upload if there's a new image
+      let imageUrl = profileData.profileImage;
+      if (profileData.profileImage && profileData.profileImage.startsWith('file://')) {
+        const formData = new FormData();
+        formData.append('image', {
+          uri: profileData.profileImage,
+          type: 'image/jpeg',
+          name: 'profile.jpg',
+        });
+        
+        try {
+          const uploadResponse = await api.post('/upload', formData, {
+            ...config,
+            headers: {
+              ...config.headers,
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          imageUrl = uploadResponse.data.url;
+        } catch (uploadError) {
+          console.error('Image upload error:', uploadError);
+          imageUrl = profileData.profileImage;
+        }
+      }
+
+      // Update the endpoint to match the route in your backend
+      const response = await api.put('/profiles/update', {  // Changed from '/profiles' to '/profiles/update'
+        ...profileData,
+        profileImage: imageUrl,
+      }, config);
+
+      return response.data;
+    } catch (error) {
+      console.error('Update profile error:', error.response?.data || error);
+      throw error.response?.data?.message || 'Failed to update profile';
+    }
+  },
+
+  updateStats: async (stats) => {
+    try {
+      const config = await getAuthHeader();
+      const response = await api.put('/profiles/stats', { stats }, config);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
 }; 

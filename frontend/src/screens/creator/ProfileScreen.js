@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -9,12 +9,14 @@ import {
   FlatList,
   Dimensions,
   TextInput,
-  Alert
+  Alert,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { guideAPI } from '../../services/api';
+import { guideAPI, profileAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
@@ -67,16 +69,47 @@ export default function ProfileScreen({ navigation }) {
   const [guideText, setGuideText] = useState('');
   const [guides, setGuides] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Dummy data - replace with actual data from your backend
-  const stats = {
-    posts: 42,
-    followers: 1234,
-    following: 321,
-    countries: 15
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const response = await profileAPI.getProfile(user.id);
+      console.log('Profile Data:', response);
+      setProfileData(response);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const posts = [];
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchProfileData();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    fetchProfileData();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProfileData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    );
+  }
 
   const handleSubmitGuide = async () => {
     if (!guideText.trim()) {
@@ -242,7 +275,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const renderContent = () => {
-    if (posts.length === 0) {
+    if (profileData?.stats?.totalPosts === 0) {
       return (
         <View style={styles.noPostsContainer}>
           {activeTab === 'posts' ? (
@@ -259,9 +292,9 @@ export default function ProfileScreen({ navigation }) {
     }
     return (
       <FlatList
-        data={posts}
+        data={guides}
         renderItem={renderPost}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item._id}
         numColumns={3}
         scrollEnabled={false}
         style={styles.postsGrid}
@@ -269,13 +302,25 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  // Get the user data either from the profile response or the auth context
+  const userData = profileData?.user || user;
+
   return (
     <View style={styles.container}>
       <LinearGradient
         colors={['#232526', '#414345', '#232526']}
         style={styles.container}
       >
-        <ScrollView>
+        <ScrollView 
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#ffffff"
+            />
+          }
+        >
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity 
@@ -284,7 +329,7 @@ export default function ProfileScreen({ navigation }) {
             >
               <Ionicons name="arrow-back" size={24} color="#ffffff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Profile</Text>
+            <Text style={styles.headerTitle}>{userData?.fullName || 'Profile'}</Text>
             <TouchableOpacity 
               onPress={() => navigation.navigate('EditProfile')}
               style={styles.editButton}
@@ -295,43 +340,67 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {/* Profile Info */}
-          <View style={styles.profileContent}>
-            <View style={styles.profileImageContainer}>
-              {user?.profileImage ? (
-                <Image 
-                  source={{ uri: user.profileImage }} 
-                  style={styles.profileImage} 
-                />
-              ) : (
-                <Ionicons name="person-circle" size={80} color="#ffffff" />
-              )}
-            </View>
-
-            <Text style={styles.username}>{user?.username || 'Username'}</Text>
-            <Text style={styles.bio}>Travel Creator | Adventure Seeker</Text>
-            <Text style={styles.location}>
-              <Ionicons name="location" size={16} color="#ffffff" /> Based in New York
-            </Text>
+          <View style={styles.profileInfo}>
+            <Image 
+              source={{ uri: userData?.profileImage }}
+              style={styles.profileImage}
+            />
+            <Text style={styles.name}>{userData?.fullName}</Text>
+            <Text style={styles.username}>@{userData?.username}</Text>
+            
+            {profileData?.bio && (
+              <Text style={styles.bio}>{profileData.bio}</Text>
+            )}
+            
+            {profileData?.location && (
+              <View style={styles.locationContainer}>
+                <Ionicons name="location" size={16} color="#FF6B6B" />
+                <Text style={styles.location}>{profileData.location}</Text>
+              </View>
+            )}
 
             {/* Stats */}
-            <View style={styles.statsContainer}>
+            <View style={styles.stats}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.posts}</Text>
+                <Text style={styles.statNumber}>
+                  {profileData?.stats?.totalPosts || 0}
+                </Text>
                 <Text style={styles.statLabel}>Posts</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.followers}</Text>
+                <Text style={styles.statNumber}>
+                  {profileData?.followers?.length || 0}
+                </Text>
                 <Text style={styles.statLabel}>Followers</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.following}</Text>
+                <Text style={styles.statNumber}>
+                  {profileData?.following?.length || 0}
+                </Text>
                 <Text style={styles.statLabel}>Following</Text>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.countries}</Text>
-                <Text style={styles.statLabel}>Countries</Text>
-              </View>
             </View>
+
+            {/* Social Links */}
+            {profileData?.socialLinks && Object.keys(profileData.socialLinks).length > 0 && (
+              <View style={styles.socialLinks}>
+                {profileData.socialLinks.instagram && (
+                  <TouchableOpacity style={styles.socialButton}>
+                    <Ionicons name="logo-instagram" size={24} color="#ffffff" />
+                  </TouchableOpacity>
+                )}
+                {profileData.socialLinks.twitter && (
+                  <TouchableOpacity style={styles.socialButton}>
+                    <Ionicons name="logo-twitter" size={24} color="#ffffff" />
+                  </TouchableOpacity>
+                )}
+                {profileData.socialLinks.facebook && (
+                  <TouchableOpacity style={styles.socialButton}>
+                    <Ionicons name="logo-facebook" size={24} color="#ffffff" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Modified Content Tabs section with just Posts and Guides */}
@@ -372,6 +441,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#232526',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -402,54 +477,79 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
   },
-  profileContent: {
-    alignItems: 'center',
-    paddingTop: 20,
+  content: {
+    flex: 1,
   },
-  profileImageContainer: {
-    marginBottom: 16,
+  profileInfo: {
+    alignItems: 'center',
+    padding: 16,
   },
   profileImage: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#ffffff',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  username: {
+  name: {
     color: '#ffffff',
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  username: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    marginBottom: 12,
   },
   bio: {
     color: '#ffffff',
-    fontSize: 16,
-    marginBottom: 8,
+    textAlign: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 32,
   },
-  location: {
-    color: '#ffffff',
-    fontSize: 14,
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  statsContainer: {
+  location: {
+    color: 'rgba(255,255,255,0.7)',
+    marginLeft: 4,
+  },
+  stats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     width: '100%',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    paddingVertical: 16,
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   statItem: {
     alignItems: 'center',
+    flex: 1,
   },
   statNumber: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   statLabel: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  socialLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 16,
+  },
+  socialButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
   },
   tabContainer: {
     flexDirection: 'row',
