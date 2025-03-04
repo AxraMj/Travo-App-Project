@@ -94,8 +94,8 @@ export const authAPI = {
   login: async (credentials) => {
     try {
       console.log('Attempting to login:', API_URL + '/auth/login');
-      const response = await api.post('/auth/login', credentials);
-      return response.data;
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
     } catch (error) {
       console.error('Login error:', error.response?.data || error.message);
       throw error.response?.data?.message || 'Login failed. Please try again.';
@@ -144,6 +144,38 @@ export const authAPI = {
   getGuides: async () => {
     const response = await api.get('/guides');
     return response.data;
+  },
+
+  updateProfile: async (profileData) => {
+    try {
+      const config = await getAuthHeader();
+      
+      // Only handle image upload if there's a new file:// image
+      let imageUrl = profileData.profileImage;
+      if (profileData.profileImage && profileData.profileImage.startsWith('file://')) {
+        try {
+          const base64Image = await FileSystem.readAsStringAsync(
+            profileData.profileImage, 
+            { encoding: FileSystem.EncodingType.Base64 }
+          );
+          imageUrl = `data:image/jpeg;base64,${base64Image}`;
+        } catch (error) {
+          console.error('Error processing image:', error);
+          // Don't throw, just keep the existing image
+          imageUrl = user?.profileImage || null;
+        }
+      }
+
+      const response = await api.put('/auth/profile', {
+        ...profileData,
+        profileImage: imageUrl,
+      }, config);
+
+      return response.data;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error.response?.data?.message || 'Failed to update profile';
+    }
   },
 };
 

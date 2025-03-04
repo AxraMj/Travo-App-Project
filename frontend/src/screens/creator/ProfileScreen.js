@@ -285,8 +285,12 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="arrow-back" size={24} color="#ffffff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Profile</Text>
-            <TouchableOpacity style={styles.settingsButton}>
-              <Ionicons name="settings-outline" size={24} color="#ffffff" />
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('EditProfile')}
+              style={styles.editButton}
+            >
+              <Ionicons name="pencil" size={20} color="#ffffff" />
+              <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
 
@@ -328,11 +332,6 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.statLabel}>Countries</Text>
               </View>
             </View>
-
-            {/* Edit Profile Button */}
-            <TouchableOpacity style={styles.editButton}>
-              <Text style={styles.editButtonText}>Edit Profile</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Modified Content Tabs section with just Posts and Guides */}
@@ -375,11 +374,13 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 50,
-    paddingBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   backButton: {
     padding: 8,
@@ -387,10 +388,19 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#ffffff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  settingsButton: {
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+  },
+  editButtonText: {
+    color: '#ffffff',
+    marginLeft: 4,
+    fontSize: 14,
   },
   profileContent: {
     alignItems: 'center',
@@ -440,18 +450,6 @@ const styles = StyleSheet.create({
   statLabel: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
-  },
-  editButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 40,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginBottom: 20,
-  },
-  editButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '500',
   },
   tabContainer: {
     flexDirection: 'row',
