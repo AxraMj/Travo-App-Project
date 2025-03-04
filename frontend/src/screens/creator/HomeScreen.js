@@ -86,12 +86,20 @@ export default function CreatorHomeScreen({ navigation }) {
             resizeMode="contain"
           />
 
-          <TouchableOpacity 
-            style={styles.createPostButton}
-            onPress={() => navigation.navigate('CreatePost')}
-          >
-            <Ionicons name="add-circle-outline" size={28} color="#ffffff" />
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Ionicons name="settings-outline" size={24} color="#ffffff" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('CreatePost')}
+            >
+              <Ionicons name="add-circle-outline" size={28} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Tabs */}
@@ -180,7 +188,12 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
   },
-  createPostButton: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
     padding: 8,
   },
   tabContainer: {

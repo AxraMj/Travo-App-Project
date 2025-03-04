@@ -35,10 +35,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('token');
-    await AsyncStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
+    try {
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
+    } catch (error) {
+      console.log('Logout error:', error);
+    }
   };
 
   const updateUserProfile = async (profileData) => {

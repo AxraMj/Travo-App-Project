@@ -13,6 +13,7 @@ import SavedScreen from './src/screens/shared/SavedScreen';
 import ProfileScreen from './src/screens/creator/ProfileScreen';
 import EditProfileScreen from './src/screens/creator/EditProfileScreen';
 import { AuthProvider } from './src/context/AuthContext';
+import SettingsScreen from './src/screens/settings/SettingsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -44,6 +45,11 @@ export default function App() {
           <Stack.Screen 
             name="EditProfile" 
             component={EditProfileScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="Settings" 
+            component={SettingsScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
