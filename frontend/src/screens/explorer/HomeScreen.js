@@ -6,19 +6,44 @@ import {
   TouchableOpacity,
   Text,
   RefreshControl,
-  Image 
+  Image,
+  Modal,
+  Pressable 
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
 import PostCard from '../../components/posts/PostCard';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ExplorerHomeScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, logout, updateUserProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('forYou');
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0].uri) {
+        await updateUserProfile({
+          ...user,
+          profileImage: result.assets[0].uri
+        });
+      }
+    } catch (error) {
+      console.log('Image picking error:', error);
+    }
+    setShowDropdown(false);
+  };
 
   const fetchPosts = async () => {
     // TODO: Implement API call
@@ -58,6 +83,53 @@ export default function ExplorerHomeScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+    } catch (error) {
+      console.log('Logout error:', error);
+    }
+  };
+
+  const ProfileDropdown = () => (
+    <Modal
+      visible={showDropdown}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowDropdown(false)}
+    >
+      <Pressable 
+        style={styles.dropdownOverlay}
+        onPress={() => setShowDropdown(false)}
+      >
+        <View style={styles.dropdownMenu}>
+          <TouchableOpacity 
+            style={styles.dropdownItem}
+            onPress={pickImage}
+          >
+            <Ionicons name="camera-outline" size={20} color="#ffffff" />
+            <Text style={styles.dropdownText}>Change Profile Picture</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.dropdownItem, styles.logoutItem]}
+            onPress={() => {
+              setShowDropdown(false);
+              handleLogout();
+            }}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -66,7 +138,10 @@ export default function ExplorerHomeScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <TouchableOpacity 
+            onPress={() => setShowDropdown(true)}
+            activeOpacity={0.7}
+          >
             {user?.profileImage ? (
               <Image 
                 source={{ uri: user.profileImage }} 
@@ -75,7 +150,7 @@ export default function ExplorerHomeScreen({ navigation }) {
             ) : (
               <Ionicons name="person-circle" size={32} color="#ffffff" />
             )}
-          </View>
+          </TouchableOpacity>
 
           <Image 
             source={require('../../../assets/logo.png')}
@@ -90,6 +165,8 @@ export default function ExplorerHomeScreen({ navigation }) {
             <Ionicons name="people-outline" size={28} color="#ffffff" />
           </TouchableOpacity>
         </View>
+
+        <ProfileDropdown />
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
@@ -216,5 +293,50 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    backgroundColor: '#232526',
+    borderRadius: 10,
+    padding: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+  },
+  dropdownText: {
+    color: '#ffffff',
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  logoutItem: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingTop: 12,
+  },
+  logoutText: {
+    color: '#FF6B6B',
+    marginLeft: 12,
+    fontSize: 16,
   },
 }); 
