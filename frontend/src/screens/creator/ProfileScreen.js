@@ -340,7 +340,7 @@ export default function ProfileScreen({ navigation }) {
                 onLike={() => handleLike(guide._id)}
                 onDislike={() => handleDislike(guide._id)}
                 onDelete={handleDeleteGuide}
-                isOwner={guide.userId === user?.userId}
+                isOwner={true}
               />
             ))}
           </View>
