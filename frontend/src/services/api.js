@@ -45,7 +45,7 @@ const getAuthHeader = async () => {
   const token = await AsyncStorage.getItem('token');
   return {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'
     }
   };
@@ -270,6 +270,23 @@ export const guideAPI = {
     } catch (error) {
       console.error('Get user guides error:', error);
       throw error.response?.data?.message || 'Failed to fetch user guides';
+    }
+  },
+
+  deleteGuide: async (guideId) => {
+    try {
+      const config = await getAuthHeader();
+      const response = await api.delete(`/guides/${guideId}`, config);
+      return response.data;
+    } catch (error) {
+      console.error('Delete guide error:', error);
+      if (error.response) {
+        throw error.response.data.message;
+      } else if (error.request) {
+        throw 'Network error - please check your connection';
+      } else {
+        throw 'Failed to delete guide';
+      }
     }
   }
 };

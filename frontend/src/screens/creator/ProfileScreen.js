@@ -21,15 +21,26 @@ import { guideAPI, profileAPI } from '../../services/api';
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
 
-const GuideCard = ({ guide, onLike, onDislike }) => (
-  <View style={styles.guideCard} key={guide._id}>
+const GuideCard = ({ guide, onLike, onDislike, onDelete, isOwner }) => (
+  <View style={styles.guideCard}>
     <View style={styles.guideHeader}>
-      <Image 
-        source={{ uri: guide.userImage }} 
-        style={styles.guideUserImage}
-        defaultSource={<Ionicons name="person-circle" size={32} color="#ffffff" />}
-      />
-      <Text style={styles.guideUsername}>{guide.username}</Text>
+      <View style={styles.guideHeaderLeft}>
+        <Image 
+          source={{ uri: guide.userImage }} 
+          style={styles.guideUserImage}
+          defaultSource={<Ionicons name="person-circle" size={32} color="#ffffff" />}
+        />
+        <Text style={styles.guideUsername}>{guide.username}</Text>
+      </View>
+      
+      {isOwner && (
+        <TouchableOpacity 
+          style={styles.deleteButton}
+          onPress={() => onDelete(guide._id)}
+        >
+          <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
+        </TouchableOpacity>
+      )}
     </View>
     
     <Text style={styles.guideText}>{guide.text}</Text>
@@ -200,6 +211,47 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handleDeleteGuide = async (guideId) => {
+    Alert.alert(
+      'Delete Guide',
+      'Are you sure you want to delete this guide?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              
+              // Call the delete API
+              const response = await guideAPI.deleteGuide(guideId);
+              
+              // Update local state
+              setGuides(prevGuides => 
+                prevGuides.filter(guide => guide._id !== guideId)
+              );
+
+              // Show success message
+              Alert.alert('Success', 'Guide deleted successfully');
+            } catch (error) {
+              console.error('Delete guide error:', error);
+              Alert.alert(
+                'Error',
+                typeof error === 'string' ? error : 'Failed to delete guide'
+              );
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderPost = ({ item }) => (
     <TouchableOpacity style={styles.postContainer}>
       {item.image ? (
@@ -258,6 +310,8 @@ export default function ProfileScreen({ navigation }) {
                 guide={guide}
                 onLike={() => handleLike(guide._id)}
                 onDislike={() => handleDislike(guide._id)}
+                onDelete={handleDeleteGuide}
+                isOwner={guide.userId === user?.userId}
               />
             ))}
           </View>
@@ -641,19 +695,25 @@ const styles = StyleSheet.create({
   },
   guideHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+  },
+  guideHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   guideUserImage: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    marginRight: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   guideUsername: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   guideText: {
     color: '#ffffff',
@@ -719,5 +779,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  deleteButton: {
+    padding: 8,
+    opacity: 0.8,
+  },
+  emptyText: {
+    color: '#ffffff',
+    textAlign: 'center',
+    marginTop: 20,
+    opacity: 0.7,
   },
 }); 

@@ -164,4 +164,33 @@ exports.dislikeGuide = async (req, res) => {
     console.error('Dislike guide error:', error);
     res.status(500).json({ message: 'Failed to dislike guide' });
   }
+};
+
+exports.deleteGuide = async (req, res) => {
+  try {
+    const { guideId } = req.params;
+    
+    // Check if guide exists and user is authorized
+    const guide = await Guide.findById(guideId);
+    if (!guide) {
+      return res.status(404).json({ message: 'Guide not found' });
+    }
+
+    // Verify ownership
+    if (guide.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this guide' });
+    }
+
+    // Delete the guide
+    await Guide.findByIdAndDelete(guideId);
+
+    // Send success response with the deleted guide ID
+    res.json({ 
+      message: 'Guide deleted successfully',
+      deletedGuideId: guideId 
+    });
+  } catch (error) {
+    console.error('Delete guide error:', error);
+    res.status(500).json({ message: 'Failed to delete guide' });
+  }
 }; 

@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const guideController = require('../controllers/guideController');
+const auth = require('../middleware/auth');
 
 // Create guide
 router.post('/', guideController.createGuide);
@@ -15,5 +16,8 @@ router.post('/:guideId/like', guideController.likeGuide);
 
 // Dislike guide
 router.post('/:guideId/dislike', guideController.dislikeGuide);
+
+// Delete guide
+router.delete('/:guideId', auth, guideController.deleteGuide);
 
 module.exports = router; 
