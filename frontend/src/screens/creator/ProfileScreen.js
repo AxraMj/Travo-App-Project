@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { guideAPI, profileAPI } from '../../services/api';
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
@@ -84,12 +85,39 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const fetchGuides = async () => {
+    try {
+      const guidesData = await guideAPI.getUserGuides(user.id);
+      console.log('Fetched guides:', guidesData);
+      
+      // Format guides for display
+      const formattedGuides = guidesData.map(guide => ({
+        _id: guide._id,
+        text: guide.text,
+        username: user.username,
+        userImage: user.profileImage,
+        likes: guide.likes || 0,
+        dislikes: guide.dislikes || 0,
+        hasLiked: guide.likedBy?.includes(user.id) || false,
+        hasDisliked: guide.dislikedBy?.includes(user.id) || false,
+        userId: guide.userId
+      }));
+      
+      setGuides(formattedGuides);
+    } catch (error) {
+      console.error('Error fetching guides:', error);
+    }
+  };
+
   const fetchProfileData = async () => {
     try {
       setLoading(true);
       const response = await profileAPI.getProfile(user.id);
       console.log('Profile Data:', response);
       setProfileData(response);
+      
+      // Fetch guides after profile data is loaded
+      await fetchGuides();
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -107,12 +135,13 @@ export default function ProfileScreen({ navigation }) {
     fetchProfileData();
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Profile screen focused - fetching latest guides');
       fetchProfileData();
-    });
-    return unsubscribe;
-  }, [navigation]);
+      return () => {};
+    }, [])
+  );
 
   if (loading) {
     return (
@@ -329,24 +358,24 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const renderContent = () => {
+    if (activeTab === 'guides') {
+      return renderGuideContent();
+    }
+    
+    // Posts content
     if (profileData?.stats?.totalPosts === 0) {
       return (
         <View style={styles.noPostsContainer}>
-          {activeTab === 'posts' ? (
-            <>
-              <Ionicons name="images-outline" size={50} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.noPostsText}>No posts yet</Text>
-              <Text style={styles.noPostsSubText}>Share your travel adventures with the world!</Text>
-            </>
-          ) : (
-            renderGuideContent()
-          )}
+          <Ionicons name="images-outline" size={50} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.noPostsText}>No posts yet</Text>
+          <Text style={styles.noPostsSubText}>Share your travel adventures with the world!</Text>
         </View>
       );
     }
+    
     return (
       <FlatList
-        data={guides}
+        data={[]} // Your posts data here
         renderItem={renderPost}
         keyExtractor={item => item._id}
         numColumns={3}
