@@ -14,6 +14,7 @@ import ProfileScreen from './src/screens/creator/ProfileScreen';
 import EditProfileScreen from './src/screens/creator/EditProfileScreen';
 import { AuthProvider } from './src/context/AuthContext';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
+import CreatePostScreen from './src/screens/creator/CreatePostScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -50,6 +51,11 @@ export default function App() {
           <Stack.Screen 
             name="Settings" 
             component={SettingsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen 
+            name="CreatePost" 
+            component={CreatePostScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>
