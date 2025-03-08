@@ -16,8 +16,9 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { guidesAPI, profileAPI } from '../../services/api/';
+import { guidesAPI, profileAPI, postsAPI } from '../../services/api/';
 import { useFocusEffect } from '@react-navigation/native';
+import PostCard from '../../components/posts/PostCard';
 
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
@@ -80,6 +81,7 @@ export default function ProfileScreen({ navigation }) {
   const [isCreatingGuide, setIsCreatingGuide] = useState(false);
   const [guideText, setGuideText] = useState('');
   const [guides, setGuides] = useState([]);
+  const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -89,17 +91,19 @@ export default function ProfileScreen({ navigation }) {
   const fetchData = async () => {
     if (!user?.id) return;
 
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
       
     try {
-      const [profileResponse, guidesResponse] = await Promise.all([
+      const [profileResponse, guidesResponse, postsResponse] = await Promise.all([
         profileAPI.getProfile(user.id),
-        guidesAPI.getUserGuides(user.id)
+        guidesAPI.getUserGuides(user.id),
+        postsAPI.getUserPosts(user.id)
       ]);
 
       setProfileData(profileResponse);
       setGuides(guidesResponse);
+      setPosts(postsResponse);
     } catch (error) {
       console.error('Error fetching profile data:', error);
       setError(error.message || 'Failed to load profile data');
@@ -292,22 +296,35 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const renderPost = ({ item }) => (
-    <TouchableOpacity style={styles.postContainer}>
-      {item.image ? (
-        <Image 
-          source={{ uri: item.image }} 
-          style={styles.postImage}
-        />
-      ) : (
-        <View style={styles.placeholderContainer}>
-          <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.5)" />
-        </View>
-      )}
-      <View style={styles.postOverlay}>
-        <Ionicons name="location" size={16} color="#ffffff" />
-      </View>
-    </TouchableOpacity>
+    <PostCard post={item} />
   );
+
+  const renderPostsContent = () => {
+    if (posts.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.emptyText}>No posts yet</Text>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={() => navigation.navigate('CreatePost')}
+          >
+            <Text style={styles.createButtonText}>Create Your First Post</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={posts}
+        renderItem={renderPost}
+        keyExtractor={item => item._id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.postsContainer}
+      />
+    );
+  };
 
   const renderGuideContent = () => {
     if (isCreatingGuide) {
@@ -368,31 +385,11 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const renderContent = () => {
-    if (activeTab === 'guides') {
+    if (activeTab === 'posts') {
+      return renderPostsContent();
+    } else {
       return renderGuideContent();
     }
-    
-    // Posts content
-    if (profileData?.stats?.totalPosts === 0) {
-      return (
-        <View style={styles.noPostsContainer}>
-          <Ionicons name="images-outline" size={50} color="rgba(255,255,255,0.5)" />
-          <Text style={styles.noPostsText}>No posts yet</Text>
-          <Text style={styles.noPostsSubText}>Share your travel adventures with the world!</Text>
-        </View>
-      );
-    }
-    
-    return (
-      <FlatList
-        data={[]} // Your posts data here
-        renderItem={renderPost}
-        keyExtractor={item => item._id}
-        numColumns={3}
-        scrollEnabled={false}
-        style={styles.postsGrid}
-      />
-    );
   };
 
   // Get the user data either from the profile response or the auth context
@@ -511,23 +508,18 @@ export default function ProfileScreen({ navigation }) {
               style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
               onPress={() => setActiveTab('posts')}
             >
-              <Ionicons 
-                name="grid-outline" 
-                size={24} 
-                color={activeTab === 'posts' ? '#ffffff' : 'rgba(255,255,255,0.7)'} 
-              />
-              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>Posts</Text>
+              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>
+                Posts
+              </Text>
             </TouchableOpacity>
+
             <TouchableOpacity 
               style={[styles.tab, activeTab === 'guides' && styles.activeTab]}
               onPress={() => setActiveTab('guides')}
             >
-              <Ionicons 
-                name="book-outline" 
-                size={24} 
-                color={activeTab === 'guides' ? '#ffffff' : 'rgba(255,255,255,0.7)'} 
-              />
-              <Text style={[styles.tabText, activeTab === 'guides' && styles.activeTabText]}>Guides</Text>
+              <Text style={[styles.tabText, activeTab === 'guides' && styles.activeTabText]}>
+                Guides
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -849,5 +841,32 @@ const styles = StyleSheet.create({
   retryText: {
     color: '#ffffff',
     textAlign: 'center',
+  },
+  postsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  createButton: {
+    backgroundColor: '#414345',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  createButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 
