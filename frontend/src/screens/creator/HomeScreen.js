@@ -21,6 +21,7 @@ export default function CreatorHomeScreen({ navigation }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('forYou');
   const [posts, setPosts] = useState([]);
+  const [followingPosts, setFollowingPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,16 +32,13 @@ export default function CreatorHomeScreen({ navigation }) {
       setError(null);
       
       const data = await postsAPI.getAllPosts();
-      
-      console.log('Raw post data:', data);
-      
       const postsArray = Array.isArray(data) ? data : [];
-      
       const validPosts = postsArray.filter(post => post && post.userId);
       
-      console.log('Processed posts:', validPosts);
-      
       setPosts(validPosts);
+
+      // For now, following posts are empty since user isn't following anyone
+      setFollowingPosts([]);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setError('Failed to load posts. Please try again.');
@@ -58,8 +56,6 @@ export default function CreatorHomeScreen({ navigation }) {
   };
 
   useEffect(() => {
-    console.log('Component mounted');
-    console.log('postsAPI available:', !!postsAPI);
     fetchPosts();
   }, []);
 
@@ -69,11 +65,17 @@ export default function CreatorHomeScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const renderEmptyComponent = () => (
-    <View style={styles.emptyContainer}>
-      {loading ? (
-        <ActivityIndicator color="#ffffff" size="large" />
-      ) : error ? (
+  const renderEmptyComponent = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator color="#ffffff" size="large" />
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
         <View style={styles.errorContainer}>
           <Ionicons name="warning-outline" size={48} color="#FF6B6B" />
           <Text style={styles.errorText}>{error}</Text>
@@ -84,20 +86,42 @@ export default function CreatorHomeScreen({ navigation }) {
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.emptyContent}>
-          <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
-          <Text style={styles.emptyText}>No posts yet</Text>
+      );
+    }
+
+    if (activeTab === 'following') {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.emptyText}>No posts available</Text>
+          <Text style={styles.emptySubText}>
+            Follow some creators to see their posts here
+          </Text>
           <TouchableOpacity 
-            style={styles.createButton}
-            onPress={() => navigation.navigate('CreatePost')}
+            style={styles.exploreButton}
+            onPress={() => navigation.navigate('Search')}
           >
-            <Text style={styles.createButtonText}>Create Your First Post</Text>
+            <Text style={styles.exploreButtonText}>Explore Creators</Text>
           </TouchableOpacity>
         </View>
-      )}
-    </View>
-  );
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
+        <Text style={styles.emptyText}>No posts yet</Text>
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={() => navigation.navigate('CreatePost')}
+        >
+          <Text style={styles.createButtonText}>Create Your First Post</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const currentPosts = activeTab === 'following' ? followingPosts : posts;
 
   return (
     <View style={styles.container}>
@@ -166,7 +190,7 @@ export default function CreatorHomeScreen({ navigation }) {
 
         {/* Posts List */}
         <FlatList
-          data={posts}
+          data={currentPosts}
           renderItem={({ item }) => item ? <PostCard post={item} /> : null}
           keyExtractor={item => item?._id || Math.random().toString()}
           refreshControl={
@@ -223,8 +247,8 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   logo: {
-    width: 100,  // Adjust size as needed
-    height: 70,  // Adjust size as needed
+    width: 100,
+    height: 70,
   },
   profileImage: {
     width: 40,
@@ -307,14 +331,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  emptyContent: {
-    alignItems: 'center',
-    padding: 20,
-  },
   emptyText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 16,
-    marginTop: 12,
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  emptySubText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
     marginBottom: 20,
   },
   createButton: {
@@ -324,6 +351,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   createButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  exploreButton: {
+    backgroundColor: '#414345',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  exploreButtonText: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
