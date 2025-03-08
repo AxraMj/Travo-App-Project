@@ -7,8 +7,10 @@ import {
   Text,
   RefreshControl,
   Image,
+  ActivityIndicator,
+  Alert,
   Modal,
-  Pressable 
+  Pressable
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,13 +18,29 @@ import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import PostCard from '../../components/posts/PostCard';
 import { useAuth } from '../../context/AuthContext';
+import { postsAPI } from '../../services/api/';
 
 export default function ExplorerHomeScreen({ navigation }) {
   const { user, logout, updateUserProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('forYou');
   const [posts, setPosts] = useState([]);
+  const [followingPosts, setFollowingPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Welcome' }],
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const pickImage = async () => {
     try {
@@ -40,59 +58,46 @@ export default function ExplorerHomeScreen({ navigation }) {
         });
       }
     } catch (error) {
-      console.log('Image picking error:', error);
+      console.error('Image picking error:', error);
     }
     setShowDropdown(false);
   };
 
   const fetchPosts = async () => {
-    // TODO: Implement API call
-    // For demonstration, using dummy data
-    setPosts([
-      {
-        id: '1',
-        user: {
-          username: 'traveler1',
-          profileImage: 'https://example.com/profile.jpg',
-        },
-        location: 'Bali, Indonesia',
-        weather: {
-          temp: 28,
-          description: 'Sunny'
-        },
-        image: 'https://example.com/image.jpg',
-        likes: 120,
-        comments: 15,
-        description: 'Beautiful sunset in Bali',
-        travelTips: [
-          'Best time to visit is during sunset',
-          'Bring water and sunscreen',
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data = await postsAPI.getAllPosts();
+      const postsArray = Array.isArray(data) ? data : [];
+      const validPosts = postsArray.filter(post => post && post.userId);
+      
+      setPosts(validPosts);
+      setFollowingPosts([]);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      setError('Failed to load posts. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to load posts. Please check your internet connection and try again.',
+        [
+          { text: 'Retry', onPress: () => fetchPosts() },
+          { text: 'Cancel', style: 'cancel' }
         ]
-      },
-      // Add more dummy posts
-    ]);
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchPosts();
-  }, [activeTab]);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Welcome' }],
-      });
-    } catch (error) {
-      console.log('Logout error:', error);
-    }
   };
 
   const ProfileDropdown = () => (
@@ -117,10 +122,7 @@ export default function ExplorerHomeScreen({ navigation }) {
           
           <TouchableOpacity 
             style={[styles.dropdownItem, styles.logoutItem]}
-            onPress={() => {
-              setShowDropdown(false);
-              handleLogout();
-            }}
+            onPress={handleLogout}
           >
             <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
             <Text style={styles.logoutText}>Logout</Text>
@@ -129,6 +131,61 @@ export default function ExplorerHomeScreen({ navigation }) {
       </Pressable>
     </Modal>
   );
+
+  const renderEmptyComponent = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator color="#ffffff" size="large" />
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning-outline" size={48} color="#FF6B6B" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={fetchPosts}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (activeTab === 'following') {
+      return (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.emptyText}>No posts available</Text>
+          <Text style={styles.emptySubText}>
+            Follow some creators to see their posts here
+          </Text>
+          <TouchableOpacity 
+            style={styles.exploreButton}
+            onPress={() => navigation.navigate('Search')}
+          >
+            <Text style={styles.exploreButtonText}>Explore Creators</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
+        <Text style={styles.emptyText}>No posts available</Text>
+        <Text style={styles.emptySubText}>
+          Check back later for new travel content
+        </Text>
+      </View>
+    );
+  };
+
+  const currentPosts = activeTab === 'following' ? followingPosts : posts;
 
   return (
     <View style={styles.container}>
@@ -159,10 +216,10 @@ export default function ExplorerHomeScreen({ navigation }) {
           />
 
           <TouchableOpacity 
-            style={styles.followingButton}
+            style={styles.iconButton}
             onPress={() => navigation.navigate('Following')}
           >
-            <Ionicons name="people-outline" size={28} color="#ffffff" />
+            <Ionicons name="people-outline" size={24} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
@@ -191,9 +248,9 @@ export default function ExplorerHomeScreen({ navigation }) {
 
         {/* Posts List */}
         <FlatList
-          data={posts}
-          renderItem={({ item }) => <PostCard post={item} />}
-          keyExtractor={item => item.id}
+          data={currentPosts}
+          renderItem={({ item }) => item ? <PostCard post={item} /> : null}
+          keyExtractor={item => item?._id || Math.random().toString()}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
@@ -201,6 +258,8 @@ export default function ExplorerHomeScreen({ navigation }) {
               tintColor="#ffffff"
             />
           }
+          ListEmptyComponent={renderEmptyComponent}
+          contentContainerStyle={styles.listContainer}
         />
 
         {/* Bottom Navigation */}
@@ -246,16 +305,60 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   logo: {
-    width: 100,  // Adjust size as needed
-    height: 70,  // Adjust size as needed
+    width: 100,
+    height: 70,
   },
   profileImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
   },
-  followingButton: {
+  iconButton: {
     padding: 8,
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    backgroundColor: '#232526',
+    borderRadius: 10,
+    padding: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+  },
+  dropdownText: {
+    color: '#ffffff',
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  logoutItem: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  logoutText: {
+    color: '#FF6B6B',
+    marginLeft: 12,
+    fontSize: 16,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -294,49 +397,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dropdownOverlay: {
+  listContainer: {
+    flexGrow: 1,
+  },
+  emptyContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 100,
-    left: 20,
-    backgroundColor: '#232526',
-    borderRadius: 10,
-    padding: 8,
-    minWidth: 180,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 40,
   },
-  dropdownText: {
-    color: '#ffffff',
-    marginLeft: 12,
-    fontSize: 16,
+  errorContainer: {
+    alignItems: 'center',
+    padding: 20,
   },
-  logoutItem: {
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    paddingTop: 12,
-  },
-  logoutText: {
+  errorText: {
     color: '#FF6B6B',
-    marginLeft: 12,
     fontSize: 16,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  emptySubText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  exploreButton: {
+    backgroundColor: '#414345',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  exploreButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 
