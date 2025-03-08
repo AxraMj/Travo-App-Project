@@ -295,10 +295,6 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  const renderPost = ({ item }) => (
-    <PostCard post={item} />
-  );
-
   const renderPostsContent = () => {
     if (posts.length === 0) {
       return (
@@ -316,13 +312,16 @@ export default function ProfileScreen({ navigation }) {
     }
 
     return (
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={item => item._id}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.postsContainer}
-      />
+      <View style={styles.postsContainer}>
+        <FlatList
+          data={posts}
+          renderItem={({ item }) => <PostCard post={item} />}
+          keyExtractor={item => item._id}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={false}
+          nestedScrollEnabled={true}
+        />
+      </View>
     );
   };
 
@@ -410,6 +409,7 @@ export default function ProfileScreen({ navigation }) {
               tintColor="#ffffff"
             />
           }
+          nestedScrollEnabled={true}
         >
           {/* Header */}
           <View style={styles.header}>
