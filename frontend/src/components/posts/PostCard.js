@@ -18,6 +18,22 @@ export default function PostCard({ post }) {
   const [showTips, setShowTips] = useState(false);
   const [likeScale] = useState(new Animated.Value(1));
 
+  // Add null check and default values
+  const {
+    userId = {},
+    image,
+    description = '',
+    location = { name: 'Unknown Location' },
+    weather = { temp: 0, description: 'Unknown' },
+    travelTips = [],
+    likes = [],
+    comments = []
+  } = post || {};
+
+  // Safely access user data
+  const username = userId?.username || 'Unknown User';
+  const profileImage = userId?.profileImage || 'https://via.placeholder.com/40';
+
   const handleLike = () => {
     setIsLiked(!isLiked);
     Animated.sequence([
@@ -34,42 +50,48 @@ export default function PostCard({ post }) {
     ]).start();
   };
 
+  if (!post) {
+    return null; // Don't render anything if post is undefined
+  }
+
   return (
     <View style={styles.container}>
       {/* User Info Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.userInfo}>
           <Image 
-            source={{ uri: post.user.profileImage }} 
+            source={{ uri: profileImage }} 
             style={styles.profileImage} 
           />
           <View>
-            <Text style={styles.username}>{post.user.username}</Text>
+            <Text style={styles.username}>{username}</Text>
             <View style={styles.locationContainer}>
               <Ionicons name="location-sharp" size={14} color="#FF6B6B" />
-              <Text style={styles.location}>{post.location}</Text>
+              <Text style={styles.location}>{location.name}</Text>
             </View>
           </View>
         </TouchableOpacity>
         
         <View style={styles.weatherContainer}>
           <Ionicons name="partly-sunny" size={20} color="#FFD93D" />
-          <Text style={styles.temperature}>{post.weather.temp}°C</Text>
+          <Text style={styles.temperature}>{weather.temp}°C</Text>
         </View>
       </View>
 
       {/* Post Image */}
-      <View style={styles.imageContainer}>
-        <Image 
-          source={{ uri: post.image }} 
-          style={styles.postImage}
-          resizeMode="cover"
-        />
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.3)']}
-          style={styles.imageGradient}
-        />
-      </View>
+      {image && (
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: image }} 
+            style={styles.postImage}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.3)']}
+            style={styles.imageGradient}
+          />
+        </View>
+      )}
 
       {/* Action Buttons */}
       <View style={styles.actions}>
@@ -85,12 +107,12 @@ export default function PostCard({ post }) {
                 color={isLiked ? "#FF6B6B" : "#ffffff"} 
               />
             </Animated.View>
-            <Text style={styles.actionText}>{post.likes}</Text>
+            <Text style={styles.actionText}>{likes.length}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionButton}>
             <Ionicons name="chatbubble-outline" size={26} color="#ffffff" />
-            <Text style={styles.actionText}>{post.comments}</Text>
+            <Text style={styles.actionText}>{comments.length}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionButton}>
@@ -117,18 +139,20 @@ export default function PostCard({ post }) {
       </View>
 
       {/* Description */}
-      <View style={styles.content}>
-        <Text style={styles.description}>{post.description}</Text>
-      </View>
+      {description && (
+        <View style={styles.content}>
+          <Text style={styles.description}>{description}</Text>
+        </View>
+      )}
 
       {/* Travel Tips */}
-      {showTips && (
+      {showTips && travelTips.length > 0 && (
         <View style={styles.tipsContainer}>
           <View style={styles.tipsHeader}>
             <Ionicons name="bulb" size={20} color="#FFD93D" />
             <Text style={styles.tipsTitle}>Travel Tips</Text>
           </View>
-          {post.travelTips.map((tip, index) => (
+          {travelTips.map((tip, index) => (
             <View key={index} style={styles.tipItem}>
               <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
               <Text style={styles.tipText}>{tip}</Text>

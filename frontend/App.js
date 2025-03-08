@@ -15,6 +15,7 @@ import EditProfileScreen from './src/screens/creator/EditProfileScreen';
 import { AuthProvider } from './src/context/AuthContext';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import CreatePostScreen from './src/screens/creator/CreatePostScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 const Stack = createNativeStackNavigator();
 
@@ -38,7 +39,14 @@ export default function App() {
           <Stack.Screen name="AccountType" component={AccountTypeScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-          <Stack.Screen name="CreatorHome" component={CreatorHomeScreen} />
+          <Stack.Screen 
+            name="CreatorHome" 
+            component={(props) => (
+              <ErrorBoundary>
+                <CreatorHomeScreen {...props} />
+              </ErrorBoundary>
+            )}
+          />
           <Stack.Screen name="ExplorerHome" component={ExplorerHomeScreen} />
           <Stack.Screen name="Search" component={SearchScreen} />
           <Stack.Screen name="Saved" component={SavedScreen} />

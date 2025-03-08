@@ -6,57 +6,94 @@ import {
   TouchableOpacity,
   Text,
   RefreshControl,
-  Image
+  Image,
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import PostCard from '../../components/posts/PostCard';
 import { useAuth } from '../../context/AuthContext';
+import { postsAPI } from '../../services/api/posts';
 
 export default function CreatorHomeScreen({ navigation }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('forYou');
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchPosts = async () => {
-    // TODO: Implement API call
-    // For demonstration, using dummy data
-    setPosts([
-      {
-        id: '1',
-        user: {
-          username: 'traveler1',
-          profileImage: user.profileImage,
-        },
-        location: 'Bali, Indonesia',
-        weather: {
-          temp: 28,
-          description: 'Sunny'
-        },
-        image: 'https://example.com/image.jpg',
-        likes: 120,
-        comments: 15,
-        description: 'Beautiful sunset in Bali',
-        travelTips: [
-          'Best time to visit is during sunset',
-          'Bring water and sunscreen',
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Fetching posts...');
+      console.log('postsAPI:', postsAPI);
+      
+      const data = await postsAPI.getAllPosts();
+      console.log('Fetched posts:', data);
+      
+      setPosts(data || []);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      setError('Failed to load posts. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to load posts. Please check your internet connection and try again.',
+        [
+          { text: 'Retry', onPress: () => fetchPosts() },
+          { text: 'Cancel', style: 'cancel' }
         ]
-      },
-      // Add more dummy posts
-    ]);
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
+    console.log('Component mounted');
+    console.log('postsAPI available:', !!postsAPI);
     fetchPosts();
-  }, [activeTab]);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);
   };
+
+  const renderEmptyComponent = () => (
+    <View style={styles.emptyContainer}>
+      {loading ? (
+        <ActivityIndicator color="#ffffff" size="large" />
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning-outline" size={48} color="#FF6B6B" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={fetchPosts}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.emptyContent}>
+          <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
+          <Text style={styles.emptyText}>No posts yet</Text>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={() => navigation.navigate('CreatePost')}
+          >
+            <Text style={styles.createButtonText}>Create Your First Post</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -127,7 +164,7 @@ export default function CreatorHomeScreen({ navigation }) {
         <FlatList
           data={posts}
           renderItem={({ item }) => <PostCard post={item} />}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item._id}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
@@ -135,6 +172,8 @@ export default function CreatorHomeScreen({ navigation }) {
               tintColor="#ffffff"
             />
           }
+          ListEmptyComponent={renderEmptyComponent}
+          contentContainerStyle={styles.listContainer}
         />
 
         {/* Bottom Navigation */}
@@ -232,5 +271,57 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listContainer: {
+    flexGrow: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: '#FF6B6B',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContent: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  createButton: {
+    backgroundColor: '#414345',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  createButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 }); 
