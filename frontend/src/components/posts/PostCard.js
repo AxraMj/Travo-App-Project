@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -6,17 +6,18 @@ import {
   Image, 
   TouchableOpacity,
   Dimensions,
-  Animated 
+  Animated,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 export default function PostCard({ post }) {
   const [isLiked, setIsLiked] = useState(false);
   const [showTips, setShowTips] = useState(false);
-  const [likeScale] = useState(new Animated.Value(1));
+  const likeScale = useState(new Animated.Value(1))[0];
+  const tipsHeight = useRef(new Animated.Value(0)).current;
 
   // Add null check and default values
   const {
@@ -25,13 +26,14 @@ export default function PostCard({ post }) {
     description = '',
     location = { name: 'Unknown Location' },
     weather = { temp: 0, description: 'Unknown' },
-    travelTips = [],
     likes = [],
-    comments = []
+    comments = [],
+    travelTips = []
   } = post || {};
 
-  // Safely access user data
-  const username = userId?.username || 'Unknown User';
+  // Safely access user data with username as fallback
+  const username = userId?.username || 'username';
+  const fullName = userId?.fullName || username;
   const profileImage = userId?.profileImage || 'https://via.placeholder.com/40';
 
   const handleLike = () => {
@@ -50,252 +52,283 @@ export default function PostCard({ post }) {
     ]).start();
   };
 
+  const handleShowTips = () => {
+    setShowTips(!showTips);
+    Animated.timing(tipsHeight, {
+      toValue: !showTips ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
   if (!post) {
-    return null; // Don't render anything if post is undefined
+    return null;
   }
 
   return (
     <View style={styles.container}>
-      {/* User Info Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.userInfo}>
-          <Image 
-            source={{ uri: profileImage }} 
-            style={styles.profileImage} 
-          />
-          <View>
-            <Text style={styles.username}>{username}</Text>
+      <View style={styles.contentContainer}>
+        {/* Profile Image */}
+        <Image 
+          source={{ uri: profileImage }} 
+          style={styles.profileImage} 
+        />
+
+        {/* Main Content */}
+        <View style={styles.mainContent}>
+          {/* User Info Header */}
+          <View style={styles.userInfo}>
+            <View style={styles.nameContainer}>
+              <Text style={styles.fullName}>{fullName}</Text>
+              <Text style={styles.username}>@{username}</Text>
+            </View>
+            <TouchableOpacity style={styles.moreButton}>
+              <Ionicons name="ellipsis-horizontal" size={18} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Post Text */}
+          {description && (
+            <Text style={styles.description}>{description}</Text>
+          )}
+
+          {/* Post Image */}
+          {image && (
+            <Image 
+              source={{ uri: image }} 
+              style={styles.postImage}
+              resizeMode="cover"
+            />
+          )}
+
+          {/* Location and Weather */}
+          <View style={styles.locationWeather}>
             <View style={styles.locationContainer}>
               <Ionicons name="location-sharp" size={14} color="#FF6B6B" />
               <Text style={styles.location}>{location.name}</Text>
             </View>
-          </View>
-        </TouchableOpacity>
-        
-        <View style={styles.weatherContainer}>
-          <Ionicons name="partly-sunny" size={20} color="#FFD93D" />
-          <Text style={styles.temperature}>{weather.temp}°C</Text>
-        </View>
-      </View>
-
-      {/* Post Image */}
-      {image && (
-        <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: image }} 
-            style={styles.postImage}
-            resizeMode="cover"
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.3)']}
-            style={styles.imageGradient}
-          />
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      <View style={styles.actions}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={handleLike}
-          >
-            <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-              <Ionicons 
-                name={isLiked ? "heart" : "heart-outline"} 
-                size={28} 
-                color={isLiked ? "#FF6B6B" : "#ffffff"} 
-              />
-            </Animated.View>
-            <Text style={styles.actionText}>{likes.length}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="chatbubble-outline" size={26} color="#ffffff" />
-            <Text style={styles.actionText}>{comments.length}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="location" size={26} color="#FF6B6B" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.rightActions}>
-          <TouchableOpacity 
-            style={styles.tipsButton}
-            onPress={() => setShowTips(!showTips)}
-          >
-            <Ionicons 
-              name="bulb-outline" 
-              size={26} 
-              color="#FFD93D" 
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="bookmark-outline" size={26} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Description */}
-      {description && (
-        <View style={styles.content}>
-          <Text style={styles.description}>{description}</Text>
-        </View>
-      )}
-
-      {/* Travel Tips */}
-      {showTips && travelTips.length > 0 && (
-        <View style={styles.tipsContainer}>
-          <View style={styles.tipsHeader}>
-            <Ionicons name="bulb" size={20} color="#FFD93D" />
-            <Text style={styles.tipsTitle}>Travel Tips</Text>
-          </View>
-          {travelTips.map((tip, index) => (
-            <View key={index} style={styles.tipItem}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>{tip}</Text>
+            <View style={styles.weatherContainer}>
+              <Ionicons name="partly-sunny" size={14} color="#FFD93D" />
+              <Text style={styles.temperature}>{weather.temp}°C</Text>
             </View>
-          ))}
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actions}>
+            <TouchableOpacity style={styles.actionButton}>
+              <Ionicons name="chatbubble-outline" size={20} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.actionText}>{comments.length}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={handleLike}
+            >
+              <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+                <Ionicons 
+                  name={isLiked ? "heart" : "heart-outline"} 
+                  size={20} 
+                  color={isLiked ? "#FF6B6B" : "rgba(255,255,255,0.7)"} 
+                />
+              </Animated.View>
+              <Text style={styles.actionText}>{likes.length}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionButton}>
+              <Ionicons name="bookmark-outline" size={20} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.actionButton, showTips && styles.activeActionButton]}
+              onPress={handleShowTips}
+            >
+              <Ionicons 
+                name={showTips ? "bulb" : "bulb-outline"}
+                size={20} 
+                color={travelTips.length > 0 ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
+              />
+              <Text style={[
+                styles.actionText,
+                showTips && { color: "#FFD93D" }
+              ]}>{travelTips.length}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Travel Tips Section */}
+          <Animated.View 
+            style={[
+              styles.tipsSection,
+              {
+                maxHeight: tipsHeight.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 500]
+                }),
+                opacity: tipsHeight
+              }
+            ]}
+          >
+            <View style={styles.tipsHeader}>
+              <Ionicons name="bulb" size={16} color="#FFD93D" />
+              <Text style={styles.tipsTitle}>Travel Tips</Text>
+            </View>
+            
+            {travelTips.length > 0 ? (
+              travelTips.map((tip, index) => (
+                <View key={index} style={styles.tipItem}>
+                  <Ionicons name="chevron-forward" size={16} color="#FFD93D" />
+                  <Text style={styles.tipText}>{tip}</Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.noTipsContainer}>
+                <Text style={styles.noTipsText}>No travel tips available</Text>
+              </View>
+            )}
+          </Animated.View>
         </View>
-      )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     marginHorizontal: 16,
-    marginVertical: 10,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginVertical: 8,
+    borderRadius: 12,
     padding: 12,
   },
-  userInfo: {
+  contentContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 12,
   },
   profileImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 10,
     borderWidth: 2,
     borderColor: '#FF6B6B',
   },
-  username: {
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 16,
+  mainContent: {
+    flex: 1,
   },
-  locationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  location: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginLeft: 2,
-  },
-  weatherContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    padding: 6,
-    borderRadius: 12,
-  },
-  temperature: {
-    color: '#ffffff',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  imageContainer: {
-    width: '100%',
-    height: width - 32, // Account for horizontal margin
-    position: 'relative',
-  },
-  postImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-  },
-  actions: {
+  userInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  leftActions: {
+  nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
-  rightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 20,
-  },
-  actionText: {
+  fullName: {
     color: '#ffffff',
-    marginLeft: 4,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  username: {
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
   },
-  tipsButton: {
-    marginRight: 20,
-  },
-  content: {
-    padding: 12,
+  moreButton: {
+    padding: 4,
   },
   description: {
     color: '#ffffff',
     fontSize: 14,
     lineHeight: 20,
+    marginBottom: 10,
   },
-  tipsContainer: {
+  postImage: {
+    width: '100%',
+    height: width * 0.5,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  locationWeather: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    padding: 8,
+    borderRadius: 8,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  location: {
+    color: '#FF6B6B',
+    fontSize: 13,
+  },
+  weatherContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  temperature: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 24,
+    marginBottom: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 6,
+  },
+  activeActionButton: {
+    backgroundColor: 'rgba(255, 217, 61, 0.1)',
+    borderRadius: 20,
+  },
+  actionText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+  },
+  tipsSection: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
     padding: 12,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 12,
-    margin: 12,
-    marginTop: 0,
+    overflow: 'hidden',
   },
   tipsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     marginBottom: 8,
   },
   tipsTitle: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
   },
   tipItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 6,
   },
   tipText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
-    marginLeft: 8,
+    color: '#ffffff',
+    fontSize: 13,
+    lineHeight: 18,
     flex: 1,
+  },
+  noTipsContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  noTipsText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
   },
 });

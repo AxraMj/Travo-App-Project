@@ -75,6 +75,30 @@ const GuideCard = ({ guide, onLike, onDislike, onDelete, isOwner }) => (
   </View>
 );
 
+const renderPostItem = ({ item }) => (
+  <TouchableOpacity 
+    style={styles.postItem}
+    onPress={() => navigation.navigate('PostDetail', { post: item })}
+  >
+    <Image 
+      source={{ uri: item.image }}
+      style={styles.postImage}
+    />
+    <View style={styles.postOverlay}>
+      <View style={styles.postStats}>
+        <View style={styles.postStat}>
+          <Ionicons name="heart" size={14} color="#ffffff" />
+          <Text style={styles.postStatText}>{item.likes?.length || 0}</Text>
+        </View>
+        <View style={styles.postStat}>
+          <Ionicons name="chatbubble" size={14} color="#ffffff" />
+          <Text style={styles.postStatText}>{item.comments?.length || 0}</Text>
+        </View>
+      </View>
+    </View>
+  </TouchableOpacity>
+);
+
 export default function ProfileScreen({ navigation }) {
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('posts');
@@ -320,6 +344,7 @@ export default function ProfileScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           scrollEnabled={false}
           nestedScrollEnabled={true}
+          contentContainerStyle={styles.postsContent}
         />
       </View>
     );
@@ -682,50 +707,33 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '500',
   },
-  postsGrid: {
+  postsContainer: {
+    flex: 1,
     width: '100%',
   },
-  postContainer: {
-    width: POST_SIZE,
-    height: POST_SIZE,
-    padding: 1,
+  postsContent: {
+    paddingBottom: 20,
   },
-  postImage: {
-    width: '100%',
-    height: '100%',
-  },
-  postOverlay: {
-    position: 'absolute',
-    bottom: 5,
-    left: 5,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 4,
-    borderRadius: 4,
-  },
-  placeholderContainer: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
+  emptyContainer: {
     alignItems: 'center',
+    paddingVertical: 40,
   },
-  noPostsContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  createButton: {
+    backgroundColor: '#414345',
     paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
   },
-  noPostsText: {
+  createButtonText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  noPostsSubText: {
-    color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
+    fontWeight: '600',
   },
   guidesContainer: {
     padding: 16,
@@ -827,46 +835,22 @@ const styles = StyleSheet.create({
     padding: 8,
     opacity: 0.8,
   },
-  errorText: {
-    color: '#ff4444',
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  retryButton: {
-    backgroundColor: '#414345',
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-  },
-  retryText: {
-    color: '#ffffff',
-    textAlign: 'center',
-  },
-  postsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  noPostsContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 16,
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  createButton: {
-    backgroundColor: '#414345',
+    justifyContent: 'center',
+    paddingVertical: 50,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
   },
-  createButtonText: {
+  noPostsText: {
     color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  noPostsSubText: {
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
-    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
 }); 
