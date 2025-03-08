@@ -3,11 +3,6 @@ const User = require('../models/User');
 
 exports.createPost = async (req, res) => {
   try {
-    console.log('Creating post:', {
-      userId: req.user?.userId,
-      hasImage: !!req.body.image
-    });
-
     if (!req.user || !req.user.userId) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
@@ -40,24 +35,19 @@ exports.createPost = async (req, res) => {
     await post.save();
 
     const populatedPost = await Post.findById(post._id)
-      .populate('userId', 'username profileImage');
+      .populate('userId', 'username profileImage fullName');
 
-    console.log('Post created successfully');
     res.status(201).json(populatedPost);
-
   } catch (error) {
     console.error('Post creation error:', error);
-    res.status(500).json({ 
-      message: 'Failed to create post',
-      error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
-    });
+    res.status(500).json({ message: 'Failed to create post' });
   }
 };
 
 exports.getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find()
-      .populate('userId', 'username profileImage')
+      .populate('userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
 
     res.json(posts);
@@ -71,7 +61,7 @@ exports.getUserPosts = async (req, res) => {
   try {
     const { userId } = req.params;
     const posts = await Post.find({ userId })
-      .populate('userId', 'username profileImage')
+      .populate('userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
 
     res.json(posts);
@@ -96,13 +86,8 @@ exports.deletePost = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to delete this post' });
     }
 
-    // Delete the post
     await Post.findByIdAndDelete(postId);
-
-    res.json({ 
-      message: 'Post deleted successfully',
-      deletedPostId: postId 
-    });
+    res.json({ message: 'Post deleted successfully', deletedPostId: postId });
   } catch (error) {
     console.error('Delete post error:', error);
     res.status(500).json({ message: 'Failed to delete post' });
@@ -119,14 +104,10 @@ exports.likePost = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    // Check if user already liked the post
     const likeIndex = post.likes.indexOf(userId);
-    
     if (likeIndex === -1) {
-      // Add like
       post.likes.push(userId);
     } else {
-      // Remove like
       post.likes.splice(likeIndex, 1);
     }
 
@@ -161,10 +142,9 @@ exports.addComment = async (req, res) => {
 
     await post.save();
 
-    // Populate the new comment's user details
     const populatedPost = await Post.findById(postId)
-      .populate('userId', 'username profileImage')
-      .populate('comments.userId', 'username profileImage');
+      .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName');
 
     res.json(populatedPost);
   } catch (error) {

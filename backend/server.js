@@ -18,8 +18,17 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/guides', auth, guideRoutes);
-app.use('/api/posts', auth, postRoutes);
+app.use('/api/posts', postRoutes);  // Remove auth middleware here since it's handled in routes
 app.use('/api/profiles', auth, profileRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.toString() : undefined
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 const YOUR_IP = '192.168.31.117';

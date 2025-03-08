@@ -1,9 +1,19 @@
 import api from './config';
 
 export const postsAPI = {
+  createPost: async (postData) => {
+    try {
+      const response = await api.post('/posts', postData);
+      return response.data;
+    } catch (error) {
+      console.error('API Error - createPost:', error);
+      throw error;
+    }
+  },
+
   getAllPosts: async () => {
     try {
-      const response = await api.get('/api/posts');
+      const response = await api.get('/posts');
       return response.data;
     } catch (error) {
       console.error('API Error - getAllPosts:', error);
@@ -13,7 +23,7 @@ export const postsAPI = {
 
   getUserPosts: async (userId) => {
     try {
-      const response = await api.get(`/api/posts/user/${userId}`);
+      const response = await api.get(`/posts/user/${userId}`);
       return response.data;
     } catch (error) {
       console.error('API Error - getUserPosts:', error);
@@ -21,28 +31,33 @@ export const postsAPI = {
     }
   },
 
-  createPost: async (postData) => {
+  likePost: async (postId) => {
     try {
-      const response = await api.post('/api/posts', postData);
+      const response = await api.post(`/posts/${postId}/like`);
       return response.data;
     } catch (error) {
-      console.error('API Error - createPost:', error);
+      console.error('API Error - likePost:', error);
       throw error;
     }
   },
 
-  likePost: async (postId) => {
-    const response = await api.post(`/api/posts/${postId}/like`);
-    return response.data;
-  },
-
-  addComment: async (postId, comment) => {
-    const response = await api.post(`/api/posts/${postId}/comment`, { text: comment });
-    return response.data;
+  addComment: async (postId, text) => {
+    try {
+      const response = await api.post(`/posts/${postId}/comment`, { text });
+      return response.data;
+    } catch (error) {
+      console.error('API Error - addComment:', error);
+      throw error;
+    }
   },
 
   deletePost: async (postId) => {
-    const response = await api.delete(`/api/posts/${postId}`);
-    return response.data;
+    try {
+      const response = await api.delete(`/posts/${postId}`);
+      return response.data;
+    } catch (error) {
+      console.error('API Error - deletePost:', error);
+      throw error;
+    }
   }
 }; 

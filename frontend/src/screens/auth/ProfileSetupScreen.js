@@ -1,32 +1,35 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
+import {
+  View,
+  Text,
+  StyleSheet,
   TouchableOpacity,
-  Dimensions,
-  TextInput,
   Image,
+  TextInput,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Alert,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
-import { authAPI } from '../../services/api/';
+import { authAPI } from '../../services/api';
+import { validateForm } from '../../utils/validation';
 
 const { width, height } = Dimensions.get('window');
 
 export default function ProfileSetupScreen({ navigation, route }) {
-  const { accountType, userData } = route.params;
-  const [username, setUsername] = useState('');
-  const [profileImage, setProfileImage] = useState(null);
-  const [errors, setErrors] = useState({});
+  const { login } = useAuth();
+  const { userData, accountType } = route.params;
   const [isLoading, setIsLoading] = useState(false);
-  const { register } = useAuth();
+  const [profileData, setProfileData] = useState({
+    username: '',
+    profileImage: null,
+    errors: {}
+  });
 
   const pickImage = async () => {
     try {
@@ -34,76 +37,72 @@ export default function ProfileSetupScreen({ navigation, route }) {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.5,
+        quality: 0.8,
       });
 
-      if (!result.canceled) {
-        setProfileImage(result.assets[0].uri);
-        // Clear any existing profile image error
-        if (errors.profileImage) {
-          setErrors(prev => ({ ...prev, profileImage: null }));
-        }
+      if (!result.canceled && result.assets[0].uri) {
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: result.assets[0].uri,
+          errors: {
+            ...prev.errors,
+            profileImage: null
+          }
+        }));
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to select image. Please try again.');
+      console.log('Image picker error:', error);
     }
-  };
-
-  const validateForm = () => {
-    let newErrors = {};
-
-    if (accountType === 'creator') {
-      if (!username.trim()) {
-        newErrors.username = 'Username is required';
-      } else if (username.length < 3) {
-        newErrors.username = 'Username must be at least 3 characters';
-      } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-        newErrors.username = 'Username can only contain letters, numbers, and underscores';
-      }
-    }
-
-    if (!profileImage) {
-      newErrors.profileImage = 'Profile picture is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleComplete = async () => {
-    if (validateForm()) {
+    try {
       setIsLoading(true);
-      try {
-        const registrationData = {
-          ...userData,
-          username: accountType === 'creator' ? username : undefined,
-          profileImage,
-          accountType
-        };
 
-        console.log('Attempting registration with:', {
-          ...registrationData,
-          profileImage: profileImage ? 'Image data present' : 'No image'
-        });
-        
-        const response = await register(registrationData);
-        console.log('Registration successful:', response);
+      // Validate form
+      const errors = validateForm(
+        { ...profileData, accountType },
+        'profileSetup'
+      );
 
-        if (accountType === 'creator') {
-          navigation.replace('CreatorHome');
-        } else {
-          navigation.replace('ExplorerHome');
-        }
-      } catch (error) {
-        console.error('Registration error:', error);
-        Alert.alert(
-          'Registration Failed',
-          error.toString()
-        );
-      } finally {
-        setIsLoading(false);
+      if (Object.keys(errors).length > 0) {
+        Alert.alert('Error', Object.values(errors)[0]);
+        return;
       }
+
+      // Prepare registration data
+      const registrationData = {
+        ...userData,
+        username: profileData.username,
+        profileImage: profileData.profileImage,
+        accountType
+      };
+
+      // Register user
+      const response = await authAPI.register(registrationData);
+
+      // Login with new credentials
+      await login({
+        email: userData.email,
+        password: userData.password
+      });
+
+      // Navigate to appropriate home screen
+      navigation.reset({
+        index: 0,
+        routes: [{ 
+          name: accountType === 'creator' ? 'CreatorHome' : 'ExplorerHome' 
+        }],
+      });
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      Alert.alert(
+        'Registration Failed',
+        error.response?.data?.message || 'Failed to create account. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -135,10 +134,10 @@ export default function ProfileSetupScreen({ navigation, route }) {
               style={styles.imageContainer}
               onPress={pickImage}
             >
-              {profileImage ? (
+              {profileData.profileImage ? (
                 <>
                   <Image 
-                    source={{ uri: profileImage }} 
+                    source={{ uri: profileData.profileImage }} 
                     style={styles.profileImage} 
                   />
                   <View style={styles.editOverlay}>
@@ -152,27 +151,33 @@ export default function ProfileSetupScreen({ navigation, route }) {
                 </View>
               )}
             </TouchableOpacity>
-            {errors.profileImage && (
-              <Text style={styles.errorText}>{errors.profileImage}</Text>
+            {profileData.errors && profileData.errors.profileImage && (
+              <Text style={styles.errorText}>{profileData.errors.profileImage}</Text>
             )}
 
             {accountType === 'creator' && (
               <View style={styles.inputSection}>
                 <Text style={styles.inputLabel}>Username</Text>
                 <View style={styles.inputWrapper}>
-                  <View style={[styles.usernameContainer, errors.username && styles.inputError]}>
+                  <View style={[styles.usernameContainer, profileData.errors && profileData.errors.username && styles.inputError]}>
                     <Text style={styles.atSymbol}>@</Text>
                     <TextInput
                       style={styles.usernameInput}
                       placeholder="username"
                       placeholderTextColor="rgba(255,255,255,0.5)"
-                      value={username}
+                      value={profileData.username}
                       onChangeText={(text) => {
                         // Remove any @ symbols from input
                         const cleanText = text.replace('@', '');
-                        setUsername(cleanText);
-                        if (errors.username) {
-                          setErrors({...errors, username: null});
+                        setProfileData(prev => ({ ...prev, username: cleanText }));
+                        if (profileData.errors && profileData.errors.username) {
+                          setProfileData(prev => ({
+                            ...prev,
+                            errors: {
+                              ...prev.errors,
+                              username: null
+                            }
+                          }));
                         }
                       }}
                       autoCapitalize="none"
@@ -180,8 +185,8 @@ export default function ProfileSetupScreen({ navigation, route }) {
                       maxLength={30}
                     />
                   </View>
-                  {errors.username && (
-                    <Text style={styles.errorText}>{errors.username}</Text>
+                  {profileData.errors && profileData.errors.username && (
+                    <Text style={styles.errorText}>{profileData.errors.username}</Text>
                   )}
                 </View>
                 <Text style={styles.inputHint}>

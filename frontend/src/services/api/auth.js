@@ -1,24 +1,14 @@
 import api from './config';
 
 export const authAPI = {
-  login: async (credentials) => {
-    try {
-      const response = await api.post('/api/auth/login', credentials);
-      return response.data;
-    } catch (error) {
-      console.error('API Error - login:', error);
-      throw error;
-    }
+  register: async (userData) => {
+    const response = await api.post('/auth/register', userData);
+    return response.data;
   },
 
-  register: async (userData) => {
-    try {
-      const response = await api.post('/api/auth/register', userData);
-      return response.data;
-    } catch (error) {
-      console.error('API Error - register:', error);
-      throw error;
-    }
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
   },
 
   // Add more auth-related endpoints as needed

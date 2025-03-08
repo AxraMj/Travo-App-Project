@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const guideRoutes = require('./routes/guide');
+const postRoutes = require('./routes/post');
 const profileRoutes = require('./routes/profile');
 const auth = require('./middleware/auth');
 
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/guides', auth, guideRoutes);
+app.use('/api/posts', auth, postRoutes);
 app.use('/api/profiles', auth, profileRoutes);
 
 // Error handling

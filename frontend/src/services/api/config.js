@@ -1,16 +1,15 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.31.117:5000'; // Your backend URL
-
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: 'http://192.168.31.117:5000/api',  // Update this with your server IP
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-  },
+  }
 });
 
-// Add token to requests
+// Add request interceptor to include auth token
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -18,10 +17,10 @@ api.interceptors.request.use(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      return config;
     } catch (error) {
-      console.error('Error setting token:', error);
+      return Promise.reject(error);
     }
-    return config;
   },
   (error) => {
     return Promise.reject(error);

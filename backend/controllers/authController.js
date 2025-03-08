@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Profile = require('../models/Profile');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -50,12 +51,29 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       accountType,
       username: accountType === 'creator' ? username : undefined,
-      profileImage: profileImage || undefined
+      profileImage: profileImage || 'https://via.placeholder.com/150'
     };
 
     // Create and save user
     const user = new User(userData);
     await user.save();
+
+    // Create profile for the user
+    const profileData = {
+      userId: user._id,
+      bio: '',
+      location: '',
+      socialLinks: {},
+      interests: [],
+      stats: {
+        totalPosts: 0,
+        totalGuides: 0,
+        totalLikes: 0
+      }
+    };
+
+    const profile = new Profile(profileData);
+    await profile.save();
 
     // Generate JWT
     const token = jwt.sign(

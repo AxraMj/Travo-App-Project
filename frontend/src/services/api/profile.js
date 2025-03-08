@@ -3,7 +3,7 @@ import api from './config';
 export const profileAPI = {
   getProfile: async (userId) => {
     try {
-      const response = await api.get(`/api/profiles/${userId}`);
+      const response = await api.get(`/profiles/${userId}`);
       return response.data;
     } catch (error) {
       console.error('API Error - getProfile:', error);
@@ -13,7 +13,7 @@ export const profileAPI = {
 
   updateProfile: async (profileData) => {
     try {
-      const response = await api.put('/api/profiles/update', profileData);
+      const response = await api.put('/profiles/update', profileData);
       return response.data;
     } catch (error) {
       console.error('API Error - updateProfile:', error);
@@ -21,9 +21,9 @@ export const profileAPI = {
     }
   },
 
-  updateStats: async (statsData) => {
+  updateStats: async (stats) => {
     try {
-      const response = await api.put('/api/profiles/stats', statsData);
+      const response = await api.put('/profiles/stats', { stats });
       return response.data;
     } catch (error) {
       console.error('API Error - updateStats:', error);

@@ -32,13 +32,16 @@ const postSchema = new mongoose.Schema({
   },
   weather: {
     temp: {
-      type: Number
+      type: Number,
+      default: 0
     },
     description: {
-      type: String
+      type: String,
+      default: 'Unknown'
     },
     icon: {
-      type: String
+      type: String,
+      default: 'unknown'
     }
   },
   travelTips: [{

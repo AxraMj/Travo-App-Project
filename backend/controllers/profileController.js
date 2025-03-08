@@ -3,17 +3,20 @@ const User = require('../models/User');
 
 exports.getProfile = async (req, res) => {
   try {
-    let profile = await Profile.findOne({ userId: req.params.userId });
-    const user = await User.findById(req.params.userId);
-
+    const userId = req.params.userId;
+    
+    // Find user first
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Find or create profile
+    let profile = await Profile.findOne({ userId });
     if (!profile) {
       // Create a new profile if it doesn't exist
       profile = await Profile.create({
-        userId: req.params.userId,
+        userId,
         bio: '',
         location: '',
         socialLinks: {},
@@ -47,21 +50,14 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    console.log('Update profile request:', {
-      userId: req.user?.userId,
-      body: req.body,
-      headers: req.headers
-    });
-
     if (!req.user || !req.user.userId) {
-      console.error('No user ID in request');
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
     // Find or create profile
     let profile = await Profile.findOne({ userId: req.user.userId });
     if (!profile) {
-      profile = new Profile({ 
+      profile = new Profile({
         userId: req.user.userId,
         bio: '',
         location: '',
@@ -78,14 +74,13 @@ exports.updateProfile = async (req, res) => {
     // Find user
     const user = await User.findById(req.user.userId);
     if (!user) {
-      console.error('User not found:', req.user.userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Update user data
     if (req.body.fullName) user.fullName = req.body.fullName;
     if (req.body.username) {
-      const existingUser = await User.findOne({ 
+      const existingUser = await User.findOne({
         username: req.body.username,
         _id: { $ne: req.user.userId }
       });
@@ -105,11 +100,6 @@ exports.updateProfile = async (req, res) => {
     // Save both documents
     await Promise.all([user.save(), profile.save()]);
 
-    console.log('Profile updated successfully:', {
-      userId: user._id,
-      username: user.username
-    });
-
     // Return combined response
     res.json({
       user: {
@@ -121,23 +111,24 @@ exports.updateProfile = async (req, res) => {
       },
       profile
     });
-
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ 
-      message: 'Failed to update profile',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Failed to update profile' });
   }
 };
 
 exports.updateStats = async (req, res) => {
   try {
-    const profile = await Profile.findOne({ userId: req.user.userId });
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    let profile = await Profile.findOne({ userId: req.user.userId });
     if (!profile) {
       return res.status(404).json({ message: 'Profile not found' });
     }
 
+    // Update stats
     profile.stats = {
       ...profile.stats,
       ...req.body.stats
