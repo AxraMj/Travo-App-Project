@@ -75,78 +75,88 @@ const GuideCard = ({ guide, onLike, onDislike, onDelete, isOwner }) => (
 );
 
 export default function ProfileScreen({ navigation }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('posts');
   const [isCreatingGuide, setIsCreatingGuide] = useState(false);
   const [guideText, setGuideText] = useState('');
   const [guides, setGuides] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  const fetchGuides = async () => {
-    try {
-      const guidesData = await guideAPI.getUserGuides(user.id);
-      console.log('Fetched guides:', guidesData);
-      
-      // Format guides for display
-      const formattedGuides = guidesData.map(guide => ({
-        _id: guide._id,
-        text: guide.text,
-        username: user.username,
-        userImage: user.profileImage,
-        likes: guide.likes || 0,
-        dislikes: guide.dislikes || 0,
-        hasLiked: guide.likedBy?.includes(user.id) || false,
-        hasDisliked: guide.dislikedBy?.includes(user.id) || false,
-        userId: guide.userId
-      }));
-      
-      setGuides(formattedGuides);
-    } catch (error) {
-      console.error('Error fetching guides:', error);
-    }
-  };
+  const fetchData = async () => {
+    if (!user?.id) return;
 
-  const fetchProfileData = async () => {
-    try {
-      setLoading(true);
-      const response = await profileAPI.getProfile(user.id);
-      console.log('Profile Data:', response);
-      setProfileData(response);
+      setIsLoading(true);
+      setError(null);
       
-      // Fetch guides after profile data is loaded
-      await fetchGuides();
+    try {
+      const [profileResponse, guidesResponse] = await Promise.all([
+        profileAPI.getProfile(user.id),
+        guideAPI.getUserGuides(user.id)
+      ]);
+
+      setProfileData(profileResponse);
+      setGuides(guidesResponse);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error fetching profile data:', error);
+      setError(error.message || 'Failed to load profile data');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchProfileData();
-    setRefreshing(false);
   };
 
   useEffect(() => {
-    fetchProfileData();
-  }, []);
+    if (!authLoading && user?.id) {
+      fetchData();
+    }
+  }, [authLoading, user]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
 
   useFocusEffect(
     useCallback(() => {
       console.log('Profile screen focused - fetching latest guides');
-      fetchProfileData();
+      fetchData();
       return () => {};
     }, [])
   );
 
-  if (loading) {
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check if we need to refresh the posts
+      const refresh = navigation.getState().routes.find(
+        route => route.name === 'Profile'
+      )?.params?.refresh;
+
+      if (refresh) {
+        fetchData();
+        // Clear the refresh param
+        navigation.setParams({ refresh: undefined });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  if (authLoading || isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#ffffff" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -539,6 +549,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#232526',
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#232526',
+    padding: 20,
+  },
+  errorText: {
+    color: '#ff4444',
+    textAlign: 'center',
+    fontSize: 16,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -813,10 +835,19 @@ const styles = StyleSheet.create({
     padding: 8,
     opacity: 0.8,
   },
-  emptyText: {
-    color: '#ffffff',
+  errorText: {
+    color: '#ff4444',
     textAlign: 'center',
     marginTop: 20,
-    opacity: 0.7,
+  },
+  retryButton: {
+    backgroundColor: '#414345',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  retryText: {
+    color: '#ffffff',
+    textAlign: 'center',
   },
 }); 

@@ -5,13 +5,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Example: if your IP is 192.168.1.5
 const API_URL = 'http://192.168.31.117:5000/api';  // Replace with YOUR IP
 
-export const api = axios.create({
+// Create axios instance with default config
+const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 10000, // Add timeout
+  timeout: 10000
 });
+
+// Add request interceptor to automatically add token
+api.interceptors.request.use(
+  async (config) => {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      // You might want to add navigation to login screen here
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Add request/response interceptors for better debugging
 api.interceptors.request.use(
@@ -42,13 +68,19 @@ api.interceptors.response.use(
 
 // Add token handling
 const getAuthHeader = async () => {
-  const token = await AsyncStorage.getItem('token');
-  return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
+  try {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      throw new Error('No token found');
     }
-  };
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  } catch (error) {
+    console.error('Error getting auth header:', error);
+    throw error;
+  }
 };
 
 export const authAPI = {
@@ -206,55 +238,17 @@ export const postsAPI = {
 export const guideAPI = {
   createGuide: async (guideData) => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      console.log('Token for guide creation:', token);
-      
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      // Create a new instance for this specific request
-      const apiInstance = axios.create({
-        baseURL: API_URL,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-
-      console.log('Creating guide with data:', {
-        text: guideData.text,
-        category: guideData.category
-      });
-
-      const response = await apiInstance.post('/guides', guideData);
-      console.log('Guide created successfully:', response.data);
-      
+      const response = await api.post('/guides', guideData);
       return response.data;
     } catch (error) {
-      console.error('Guide creation error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack
-      });
-
-      // Throw a more specific error message
-      if (error.response?.status === 401) {
-        throw new Error('Authentication failed. Please log in again.');
-      } else if (error.response?.status === 400) {
-        throw new Error(error.response.data.message || 'Invalid guide data');
-      } else {
-        throw new Error(error.response?.data?.message || error.message || 'Failed to create guide');
-      }
+      console.error('Guide creation error:', error);
+      throw error.response?.data?.message || 'Failed to create guide';
     }
   },
 
   getGuides: async () => {
     try {
-      const config = await getAuthHeader();
-      const response = await api.get('/guides', config);
+      const response = await api.get('/guides');
       return response.data;
     } catch (error) {
       console.error('Get guides error:', error);
@@ -264,19 +258,17 @@ export const guideAPI = {
 
   getUserGuides: async (userId) => {
     try {
-      const config = await getAuthHeader();
-      const response = await api.get(`/guides/user/${userId}`, config);
+      const response = await api.get(`/guides/user/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Get user guides error:', error);
-      throw error.response?.data?.message || 'Failed to fetch user guides';
+      throw error.response?.data?.message || 'Failed to fetch guides';
     }
   },
 
   deleteGuide: async (guideId) => {
     try {
-      const config = await getAuthHeader();
-      const response = await api.delete(`/guides/${guideId}`, config);
+      const response = await api.delete(`/guides/${guideId}`);
       return response.data;
     } catch (error) {
       console.error('Delete guide error:', error);
@@ -294,64 +286,68 @@ export const guideAPI = {
 export const profileAPI = {
   getProfile: async (userId) => {
     try {
-      const config = await getAuthHeader();
-      const response = await api.get(`/profiles/${userId}`, config);
+      const response = await api.get(`/profiles/${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Get profile error:', error.response?.data || error);
+      console.error('Get profile error:', error);
       throw error.response?.data?.message || 'Failed to fetch profile';
     }
   },
 
   updateProfile: async (profileData) => {
     try {
-      const config = await getAuthHeader();
-      
-      // Handle image upload if there's a new image
-      let imageUrl = profileData.profileImage;
-      if (profileData.profileImage && profileData.profileImage.startsWith('file://')) {
-        const formData = new FormData();
-        formData.append('image', {
-          uri: profileData.profileImage,
-          type: 'image/jpeg',
-          name: 'profile.jpg',
-        });
-        
-        try {
-          const uploadResponse = await api.post('/upload', formData, {
-            ...config,
-            headers: {
-              ...config.headers,
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          imageUrl = uploadResponse.data.url;
-        } catch (uploadError) {
-          console.error('Image upload error:', uploadError);
-          imageUrl = profileData.profileImage;
-        }
-      }
-
-      // Update the endpoint to match the route in your backend
-      const response = await api.put('/profiles/update', {  // Changed from '/profiles' to '/profiles/update'
-        ...profileData,
-        profileImage: imageUrl,
-      }, config);
-
+      const response = await api.put('/profiles/update', profileData);
       return response.data;
     } catch (error) {
-      console.error('Update profile error:', error.response?.data || error);
+      console.error('Update profile error:', error);
       throw error.response?.data?.message || 'Failed to update profile';
     }
   },
 
   updateStats: async (stats) => {
     try {
-      const config = await getAuthHeader();
-      const response = await api.put('/profiles/stats', { stats }, config);
+      const response = await api.put('/profiles/stats', { stats });
       return response.data;
     } catch (error) {
       throw error;
     }
+  }
+};
+
+// Post APIs
+export const postAPI = {
+  createPost: async (postData) => {
+    try {
+      const response = await api.post('/posts', postData);
+      return response.data;
+    } catch (error) {
+      console.error('Post creation error:', error);
+      throw error.response?.data?.message || 'Failed to create post';
+    }
+  },
+
+  getAllPosts: async () => {
+    const response = await api.get('/posts');
+    return response.data;
+  },
+
+  getUserPosts: async (userId) => {
+    const response = await api.get(`/posts/user/${userId}`);
+    return response.data;
+  },
+
+  likePost: async (postId) => {
+    const response = await api.post(`/posts/${postId}/like`);
+    return response.data;
+  },
+
+  addComment: async (postId, text) => {
+    const response = await api.post(`/posts/${postId}/comment`, { text });
+    return response.data;
+  },
+
+  deletePost: async (postId) => {
+    const response = await api.delete(`/posts/${postId}`);
+    return response.data;
   }
 }; 

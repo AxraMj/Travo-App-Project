@@ -1,3 +1,5 @@
+const mongoose = require('mongoose');
+
 const postSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -8,26 +10,79 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  description: {
+    type: String,
+    maxLength: 1000
+  },
   location: {
-    name: String,
+    name: {
+      type: String,
+      required: true
+    },
     coordinates: {
-      latitude: Number,
-      longitude: Number
+      latitude: {
+        type: Number,
+        required: true
+      },
+      longitude: {
+        type: Number,
+        required: true
+      }
     }
   },
   weather: {
-    temp: Number,
-    description: String,
-    icon: String
+    temp: {
+      type: Number
+    },
+    description: {
+      type: String
+    },
+    icon: {
+      type: String
+    }
   },
-  description: String,
-  travelTips: [String],
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  travelTips: [{
+    type: String,
+    maxLength: 200
+  }],
+  likes: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   comments: [{
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    text: String,
-    createdAt: { type: Date, default: Date.now }
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    text: {
+      type: String,
+      required: true,
+      maxLength: 500
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
   }]
 }, {
-  timestamps: true
-}); 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual field for likes count
+postSchema.virtual('likesCount').get(function() {
+  return this.likes.length;
+});
+
+// Virtual field for comments count
+postSchema.virtual('commentsCount').get(function() {
+  return this.comments.length;
+});
+
+// Index for better query performance
+postSchema.index({ userId: 1, createdAt: -1 });
+postSchema.index({ 'location.coordinates': '2dsphere' });
+
+module.exports = mongoose.model('Post', postSchema); 
