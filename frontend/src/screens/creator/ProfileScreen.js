@@ -16,7 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { guideAPI, profileAPI } from '../../services/api';
+import { guidesAPI, profileAPI } from '../../services/api/';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
@@ -95,7 +95,7 @@ export default function ProfileScreen({ navigation }) {
     try {
       const [profileResponse, guidesResponse] = await Promise.all([
         profileAPI.getProfile(user.id),
-        guideAPI.getUserGuides(user.id)
+        guidesAPI.getUserGuides(user.id)
       ]);
 
       setProfileData(profileResponse);
@@ -169,7 +169,7 @@ export default function ProfileScreen({ navigation }) {
     try {
       setIsLoading(true);
       
-      const newGuide = await guideAPI.createGuide({
+      const newGuide = await guidesAPI.createGuide({
         text: guideText.trim()
       });
       
@@ -267,7 +267,7 @@ export default function ProfileScreen({ navigation }) {
               setIsLoading(true);
               
               // Call the delete API
-              const response = await guideAPI.deleteGuide(guideId);
+              const response = await guidesAPI.deleteGuide(guideId);
               
               // Update local state
               setGuides(prevGuides => 

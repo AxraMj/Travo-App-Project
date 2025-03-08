@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import PostCard from '../../components/posts/PostCard';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI } from '../../services/api/posts';
+import { postsAPI } from '../../services/api/';
 
 export default function CreatorHomeScreen({ navigation }) {
   const { user } = useAuth();

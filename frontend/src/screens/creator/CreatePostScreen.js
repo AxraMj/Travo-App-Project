@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useAuth } from '../../context/AuthContext';
-import { postAPI } from '../../services/api';
+import { postsAPI } from '../../services/api/';
 import { showErrorAlert } from '../../utils/errorHandler';
 
 export default function CreatePostScreen({ navigation }) {
@@ -160,7 +160,7 @@ export default function CreatePostScreen({ navigation }) {
         image: postData.image ? 'Image present' : 'No image'
       });
 
-      const response = await postAPI.createPost(postData);
+      const response = await postsAPI.createPost(postData);
       console.log('Post created successfully:', response);
 
       Alert.alert(
