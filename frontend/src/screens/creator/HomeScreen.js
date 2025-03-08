@@ -30,13 +30,17 @@ export default function CreatorHomeScreen({ navigation }) {
       setLoading(true);
       setError(null);
       
-      console.log('Fetching posts...');
-      console.log('postsAPI:', postsAPI);
-      
       const data = await postsAPI.getAllPosts();
-      console.log('Fetched posts:', data);
       
-      setPosts(data || []);
+      console.log('Raw post data:', data);
+      
+      const postsArray = Array.isArray(data) ? data : [];
+      
+      const validPosts = postsArray.filter(post => post && post.userId);
+      
+      console.log('Processed posts:', validPosts);
+      
+      setPosts(validPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setError('Failed to load posts. Please try again.');
@@ -163,8 +167,8 @@ export default function CreatorHomeScreen({ navigation }) {
         {/* Posts List */}
         <FlatList
           data={posts}
-          renderItem={({ item }) => <PostCard post={item} />}
-          keyExtractor={item => item._id}
+          renderItem={({ item }) => item ? <PostCard post={item} /> : null}
+          keyExtractor={item => item?._id || Math.random().toString()}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
