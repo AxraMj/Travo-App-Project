@@ -125,9 +125,26 @@ export default function ProfileScreen({ navigation }) {
         postsAPI.getUserPosts(user.id)
       ]);
 
-      setProfileData(profileResponse);
+      // Update profile with correct post count
+      const updatedProfile = {
+        ...profileResponse,
+        stats: {
+          ...profileResponse.stats,
+          totalPosts: postsResponse.length
+        }
+      };
+
+      setProfileData(updatedProfile);
       setGuides(guidesResponse);
       setPosts(postsResponse);
+
+      // Update the profile stats in the backend
+      await profileAPI.updateStats({
+        stats: {
+          totalPosts: postsResponse.length
+        }
+      });
+
     } catch (error) {
       console.error('Error fetching profile data:', error);
       setError(error.message || 'Failed to load profile data');
