@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { guidesAPI } from '../../services/api';
 import PostCard from '../../components/posts/PostCard';
 import GuideCard from '../../components/guides/GuideCard';
 import { useAuth } from '../../context/AuthContext';
+import FollowModal from '../../components/modals/FollowModal';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,10 @@ export default function UserProfileScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const [followModalVisible, setFollowModalVisible] = useState(false);
+  const [followModalType, setFollowModalType] = useState('followers');
+  const [followModalData, setFollowModalData] = useState([]);
+  const [followModalLoading, setFollowModalLoading] = useState(false);
 
   const fetchUserData = async () => {
     try {
@@ -143,6 +148,44 @@ export default function UserProfileScreen({ navigation, route }) {
     } catch (error) {
       console.error('Error deleting guide:', error);
       Alert.alert('Error', 'Failed to delete guide');
+    }
+  };
+
+  const handleFollowersPress = async () => {
+    setFollowModalType('followers');
+    setFollowModalVisible(true);
+    setFollowModalLoading(true);
+    try {
+      const followers = await profileAPI.getFollowers(userId);
+      setFollowModalData(followers);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      // Handle error appropriately
+    } finally {
+      setFollowModalLoading(false);
+    }
+  };
+
+  const handleFollowingPress = async () => {
+    setFollowModalType('following');
+    setFollowModalVisible(true);
+    setFollowModalLoading(true);
+    try {
+      const following = await profileAPI.getFollowing(userId);
+      setFollowModalData(following);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      // Handle error appropriately
+    } finally {
+      setFollowModalLoading(false);
+    }
+  };
+
+  const handleUserPress = (selectedUserId) => {
+    if (selectedUserId === userId) {
+      navigation.navigate('Profile');
+    } else {
+      navigation.push('UserProfile', { userId: selectedUserId });
     }
   };
 
@@ -298,18 +341,24 @@ export default function UserProfileScreen({ navigation, route }) {
                 </Text>
                 <Text style={styles.statLabel}>Posts</Text>
               </View>
-              <View style={styles.statItem}>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={handleFollowersPress}
+              >
                 <Text style={styles.statNumber}>
                   {profile.followers?.length || 0}
                 </Text>
                 <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.statItem}>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={handleFollowingPress}
+              >
                 <Text style={styles.statNumber}>
                   {profile.following?.length || 0}
                 </Text>
                 <Text style={styles.statLabel}>Following</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Social Links */}
@@ -359,6 +408,15 @@ export default function UserProfileScreen({ navigation, route }) {
           {renderContent()}
         </ScrollView>
       </LinearGradient>
+
+      <FollowModal
+        visible={followModalVisible}
+        onClose={() => setFollowModalVisible(false)}
+        data={followModalData}
+        type={followModalType}
+        loading={followModalLoading}
+        onUserPress={handleUserPress}
+      />
     </View>
   );
 }

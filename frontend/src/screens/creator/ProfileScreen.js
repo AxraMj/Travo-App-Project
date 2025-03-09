@@ -20,6 +20,7 @@ import { guidesAPI, profileAPI, postsAPI } from '../../services/api/';
 import { useFocusEffect } from '@react-navigation/native';
 import PostCard from '../../components/posts/PostCard';
 import GuideCard from '../../components/guides/GuideCard';
+import FollowModal from '../../components/modals/FollowModal';
 
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
@@ -61,6 +62,10 @@ export default function ProfileScreen({ navigation }) {
   const [profileData, setProfileData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [followModalVisible, setFollowModalVisible] = useState(false);
+  const [followModalType, setFollowModalType] = useState('followers');
+  const [followModalData, setFollowModalData] = useState([]);
+  const [followModalLoading, setFollowModalLoading] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -300,6 +305,44 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const handleFollowersPress = async () => {
+    setFollowModalType('followers');
+    setFollowModalVisible(true);
+    setFollowModalLoading(true);
+    try {
+      const followers = await profileAPI.getFollowers(user.id);
+      setFollowModalData(followers);
+    } catch (error) {
+      console.error('Error fetching followers:', error);
+      // Handle error appropriately
+    } finally {
+      setFollowModalLoading(false);
+    }
+  };
+
+  const handleFollowingPress = async () => {
+    setFollowModalType('following');
+    setFollowModalVisible(true);
+    setFollowModalLoading(true);
+    try {
+      const following = await profileAPI.getFollowing(user.id);
+      setFollowModalData(following);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      // Handle error appropriately
+    } finally {
+      setFollowModalLoading(false);
+    }
+  };
+
+  const handleUserPress = (selectedUserId) => {
+    if (selectedUserId === user.id) {
+      navigation.navigate('Profile');
+    } else {
+      navigation.navigate('UserProfile', { userId: selectedUserId });
+    }
+  };
+
   const renderPostsContent = () => {
     if (posts.length === 0) {
       return (
@@ -493,25 +536,31 @@ export default function ProfileScreen({ navigation }) {
             )}
 
             {/* Stats */}
-            <View style={styles.stats}>
+            <View style={styles.statsContainer}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
                   {profileData?.stats?.totalPosts || 0}
                 </Text>
                 <Text style={styles.statLabel}>Posts</Text>
               </View>
-              <View style={styles.statItem}>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={handleFollowersPress}
+              >
                 <Text style={styles.statNumber}>
                   {profileData?.followers?.length || 0}
                 </Text>
                 <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.statItem}>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.statItem}
+                onPress={handleFollowingPress}
+              >
                 <Text style={styles.statNumber}>
                   {profileData?.following?.length || 0}
                 </Text>
                 <Text style={styles.statLabel}>Following</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Social Links */}
@@ -561,6 +610,15 @@ export default function ProfileScreen({ navigation }) {
           {renderContent()}
         </ScrollView>
       </LinearGradient>
+
+      <FollowModal
+        visible={followModalVisible}
+        onClose={() => setFollowModalVisible(false)}
+        data={followModalData}
+        type={followModalType}
+        loading={followModalLoading}
+        onUserPress={handleUserPress}
+      />
     </View>
   );
 }
@@ -657,14 +715,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     marginLeft: 4,
   },
-  stats: {
+  statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    width: '100%',
     paddingVertical: 16,
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  statsText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   statItem: {
     alignItems: 'center',

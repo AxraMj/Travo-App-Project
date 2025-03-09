@@ -232,4 +232,42 @@ exports.unfollowUser = async (req, res) => {
     console.error('Unfollow user error:', error);
     res.status(500).json({ message: 'Failed to unfollow user' });
   }
+};
+
+exports.getFollowers = async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ userId: req.params.userId })
+      .populate({
+        path: 'followers',
+        select: '_id username fullName profileImage'
+      });
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    res.json(profile.followers);
+  } catch (error) {
+    console.error('Error fetching followers:', error);
+    res.status(500).json({ message: 'Error fetching followers' });
+  }
+};
+
+exports.getFollowing = async (req, res) => {
+  try {
+    const profile = await Profile.findOne({ userId: req.params.userId })
+      .populate({
+        path: 'following',
+        select: '_id username fullName profileImage'
+      });
+
+    if (!profile) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+
+    res.json(profile.following);
+  } catch (error) {
+    console.error('Error fetching following:', error);
+    res.status(500).json({ message: 'Error fetching following list' });
+  }
 }; 
