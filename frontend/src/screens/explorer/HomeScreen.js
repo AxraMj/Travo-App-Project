@@ -100,6 +100,23 @@ export default function ExplorerHomeScreen({ navigation }) {
     setRefreshing(false);
   };
 
+  const handlePostDelete = (postId) => {
+    // Update the UI immediately
+    setPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
+    setFollowingPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
+  };
+
+  const handlePostUpdate = (updatedPost) => {
+    const updatePostsArray = (postsArray) => {
+      return postsArray.map(post => 
+        post._id === updatedPost._id ? updatedPost : post
+      );
+    };
+
+    setPosts(updatePostsArray);
+    setFollowingPosts(updatePostsArray);
+  };
+
   const ProfileDropdown = () => (
     <Modal
       visible={showDropdown}
@@ -249,7 +266,15 @@ export default function ExplorerHomeScreen({ navigation }) {
         {/* Posts List */}
         <FlatList
           data={currentPosts}
-          renderItem={({ item }) => item ? <PostCard post={item} /> : null}
+          renderItem={({ item }) => (
+            item ? (
+              <PostCard 
+                post={item} 
+                onPostUpdate={handlePostUpdate}
+                onPostDelete={handlePostDelete}
+              />
+            ) : null
+          )}
           keyExtractor={item => item?._id || Math.random().toString()}
           refreshControl={
             <RefreshControl 

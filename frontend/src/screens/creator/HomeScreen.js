@@ -37,8 +37,6 @@ export default function CreatorHomeScreen({ navigation }) {
       const validPosts = postsArray.filter(post => post && post.userId);
       
       setPosts(validPosts);
-
-      // For now, following posts are empty since user isn't following anyone
       setFollowingPosts([]);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -64,6 +62,23 @@ export default function CreatorHomeScreen({ navigation }) {
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);
+  };
+
+  const handlePostDelete = (postId) => {
+    // Update the UI immediately
+    setPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
+    setFollowingPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
+  };
+
+  const handlePostUpdate = (updatedPost) => {
+    const updatePostsArray = (postsArray) => {
+      return postsArray.map(post => 
+        post._id === updatedPost._id ? updatedPost : post
+      );
+    };
+
+    setPosts(updatePostsArray);
+    setFollowingPosts(updatePostsArray);
   };
 
   const renderEmptyComponent = () => {
@@ -130,10 +145,8 @@ export default function CreatorHomeScreen({ navigation }) {
         colors={['#232526', '#414345', '#232526']}
         style={styles.container}
       >
-        {/* Use HomeHeader component */}
         <HomeHeader navigation={navigation} isCreator={true} />
 
-        {/* Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'forYou' && styles.activeTab]}
@@ -154,10 +167,17 @@ export default function CreatorHomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Posts List */}
         <FlatList
           data={currentPosts}
-          renderItem={({ item }) => item ? <PostCard post={item} /> : null}
+          renderItem={({ item }) => (
+            item ? (
+              <PostCard 
+                post={item} 
+                onPostUpdate={handlePostUpdate}
+                onPostDelete={handlePostDelete}
+              />
+            ) : null
+          )}
           keyExtractor={item => item?._id || Math.random().toString()}
           refreshControl={
             <RefreshControl 
@@ -170,7 +190,6 @@ export default function CreatorHomeScreen({ navigation }) {
           contentContainerStyle={styles.listContainer}
         />
 
-        {/* Bottom Navigation */}
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem}>
             <Ionicons name="home" size={24} color="#ffffff" />
@@ -194,8 +213,9 @@ export default function CreatorHomeScreen({ navigation }) {
             <Ionicons name="bookmark-outline" size={24} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
         </View>
+
+        <StatusBar style="light" />
       </LinearGradient>
-      <StatusBar style="light" />
     </View>
   );
 }

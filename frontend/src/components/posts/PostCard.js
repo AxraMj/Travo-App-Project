@@ -20,10 +20,11 @@ import { postsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-export default function PostCard({ post, onPostUpdate }) {
+export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [showTips, setShowTips] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localPost, setLocalPost] = useState(post);
@@ -135,6 +136,37 @@ export default function PostCard({ post, onPostUpdate }) {
     }
   };
 
+  // Handle post deletion
+  const handleDeletePost = () => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await postsAPI.deletePost(localPost._id);
+              setShowSettings(false);
+              if (onPostDelete) {
+                onPostDelete(localPost._id);
+              }
+            } catch (error) {
+              console.error('Delete post error:', error);
+              Alert.alert('Error', 'Failed to delete post. Please try again.');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const renderComment = ({ item }) => (
     <View style={styles.commentItem}>
       <Image 
@@ -160,6 +192,40 @@ export default function PostCard({ post, onPostUpdate }) {
     </View>
   );
 
+  // Settings Modal Component
+  const SettingsModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showSettings}
+      onRequestClose={() => setShowSettings(false)}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowSettings(false)}
+      >
+        <View style={styles.settingsModal}>
+          {user?.id === localPost.userId._id && (
+            <TouchableOpacity 
+              style={styles.settingsOption}
+              onPress={handleDeletePost}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+              <Text style={[styles.settingsText, { color: '#FF6B6B' }]}>Delete Post</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity 
+            style={styles.settingsOption}
+            onPress={() => setShowSettings(false)}
+          >
+            <Text style={styles.settingsText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   if (!localPost) return null;
 
   return (
@@ -179,7 +245,10 @@ export default function PostCard({ post, onPostUpdate }) {
               <Text style={styles.fullName}>{localPost.userId.fullName}</Text>
               <Text style={styles.username}>@{localPost.userId.username}</Text>
             </View>
-            <TouchableOpacity style={styles.moreButton}>
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => setShowSettings(true)}
+            >
               <Ionicons name="ellipsis-horizontal" size={18} color="rgba(255,255,255,0.5)" />
             </TouchableOpacity>
           </View>
@@ -343,6 +412,9 @@ export default function PostCard({ post, onPostUpdate }) {
           </View>
         </View>
       </Modal>
+
+      {/* Settings Modal */}
+      <SettingsModal />
     </View>
   );
 }
@@ -567,5 +639,27 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  settingsModal: {
+    backgroundColor: '#232526',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    gap: 16,
+  },
+  settingsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  settingsText: {
+    color: '#ffffff',
+    fontSize: 16,
   },
 });
