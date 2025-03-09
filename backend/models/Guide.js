@@ -6,6 +6,14 @@ const guideSchema = new mongoose.Schema({
     required: true,
     maxLength: 500
   },
+  location: {
+    type: String,
+    maxLength: 100
+  },
+  locationNote: {
+    type: String,
+    maxLength: 100
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

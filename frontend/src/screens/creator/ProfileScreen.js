@@ -19,61 +19,10 @@ import { useAuth } from '../../context/AuthContext';
 import { guidesAPI, profileAPI, postsAPI } from '../../services/api/';
 import { useFocusEffect } from '@react-navigation/native';
 import PostCard from '../../components/posts/PostCard';
+import GuideCard from '../../components/guides/GuideCard';
 
 const { width } = Dimensions.get('window');
 const POST_SIZE = width / 3;
-
-const GuideCard = ({ guide, onLike, onDislike, onDelete, isOwner }) => (
-  <View style={styles.guideCard}>
-    <View style={styles.guideHeader}>
-      <View style={styles.guideHeaderLeft}>
-        <Image 
-          source={{ uri: guide.userImage }} 
-          style={styles.guideUserImage}
-          defaultSource={<Ionicons name="person-circle" size={32} color="#ffffff" />}
-        />
-        <Text style={styles.guideUsername}>{guide.username}</Text>
-      </View>
-      
-      {isOwner && (
-        <TouchableOpacity 
-          style={styles.deleteButton}
-          onPress={() => onDelete(guide._id)}
-        >
-          <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
-        </TouchableOpacity>
-      )}
-    </View>
-    
-    <Text style={styles.guideText}>{guide.text}</Text>
-    
-    <View style={styles.guideActions}>
-      <TouchableOpacity 
-        style={styles.actionButton} 
-        onPress={() => onLike(guide.id)}
-      >
-        <Ionicons 
-          name={guide.hasLiked ? "heart" : "heart-outline"} 
-          size={24} 
-          color={guide.hasLiked ? "#ff4444" : "#ffffff"} 
-        />
-        <Text style={styles.actionCount}>{guide.likes}</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.actionButton} 
-        onPress={() => onDislike(guide.id)}
-      >
-        <Ionicons 
-          name={guide.hasDisliked ? "thumbs-down" : "thumbs-down-outline"} 
-          size={24} 
-          color={guide.hasDisliked ? "#4444ff" : "#ffffff"} 
-        />
-        <Text style={styles.actionCount}>{guide.dislikes}</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
 
 const renderPostItem = ({ item }) => (
   <TouchableOpacity 
@@ -104,11 +53,12 @@ export default function ProfileScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('posts');
   const [isCreatingGuide, setIsCreatingGuide] = useState(false);
   const [guideText, setGuideText] = useState('');
+  const [locationInput, setLocationInput] = useState('');
+  const [locationNoteInput, setLocationNoteInput] = useState('');
   const [guides, setGuides] = useState([]);
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
@@ -125,6 +75,13 @@ export default function ProfileScreen({ navigation }) {
         postsAPI.getUserPosts(user.id)
       ]);
 
+      // Format guides with user information
+      const formattedGuides = guidesResponse.map(guide => ({
+        ...guide,
+        username: user.username,
+        userImage: user.profileImage
+      }));
+
       // Update profile with correct post count
       const updatedProfile = {
         ...profileResponse,
@@ -135,7 +92,7 @@ export default function ProfileScreen({ navigation }) {
       };
 
       setProfileData(updatedProfile);
-      setGuides(guidesResponse);
+      setGuides(formattedGuides);
       setPosts(postsResponse);
 
       // Update the profile stats in the backend
@@ -207,31 +164,38 @@ export default function ProfileScreen({ navigation }) {
   }
 
   const handleSubmitGuide = async () => {
-    if (!guideText.trim()) {
+    if (!guideText.trim() || !locationInput.trim()) {
+      Alert.alert('Error', 'Please provide both location and guide text');
       return;
     }
 
     try {
       setIsLoading(true);
       
-      const newGuide = await guidesAPI.createGuide({
-        text: guideText.trim()
-      });
+      const guideData = {
+        text: guideText.trim(),
+        location: locationInput.trim(),
+        locationNote: locationNoteInput.trim(),
+        userId: user.id
+      };
       
-      // Format the guide for display
+      const newGuide = await guidesAPI.createGuide(guideData);
+      
+      // Format the guide with user information
       const formattedGuide = {
-        _id: newGuide._id,
-        text: newGuide.text,
+        ...newGuide,
         username: user.username,
         userImage: user.profileImage,
-        likes: 0,
-        dislikes: 0,
+        likes: newGuide.likes || 0,
+        dislikes: newGuide.dislikes || 0,
         hasLiked: false,
         hasDisliked: false
       };
       
       setGuides(prevGuides => [formattedGuide, ...prevGuides]);
       setGuideText('');
+      setLocationInput('');
+      setLocationNoteInput('');
       setIsCreatingGuide(false);
       
     } catch (error) {
@@ -371,21 +335,46 @@ export default function ProfileScreen({ navigation }) {
     if (isCreatingGuide) {
       return (
         <View style={styles.createGuideForm}>
-          <TextInput
-            style={styles.guideInput}
-            placeholder="Share your travel tips..."
-            placeholderTextColor="rgba(255,255,255,0.5)"
-            value={guideText}
-            onChangeText={setGuideText}
-            multiline
-            maxLength={500}
-          />
+          <View style={styles.inputGroup}>
+            <View style={styles.locationInputContainer}>
+              <Ionicons name="location" size={20} color="#ffffff" style={styles.locationIcon} />
+              <TextInput
+                style={styles.locationInput}
+                placeholder="Add location..."
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                value={locationInput}
+                onChangeText={setLocationInput}
+              />
+            </View>
+
+            <TextInput
+              style={styles.locationNoteInput}
+              placeholder="Add a note about this location..."
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              value={locationNoteInput}
+              onChangeText={setLocationNoteInput}
+            />
+
+            <TextInput
+              style={styles.guideInput}
+              placeholder="Share your travel tips and experiences..."
+              placeholderTextColor="rgba(255,255,255,0.5)"
+              value={guideText}
+              onChangeText={setGuideText}
+              multiline
+              maxLength={500}
+            />
+          </View>
+
           <TouchableOpacity 
-            style={[styles.submitButton, !guideText.trim() && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              (!guideText.trim() || !locationInput.trim()) && styles.submitButtonDisabled
+            ]}
             onPress={handleSubmitGuide}
-            disabled={!guideText.trim()}
+            disabled={!guideText.trim() || !locationInput.trim()}
           >
-            <Text style={styles.submitText}>Post</Text>
+            <Text style={styles.submitButtonText}>Share Guide</Text>
           </TouchableOpacity>
         </View>
       );
@@ -400,21 +389,24 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.noPostsSubText}>Share your travel tips and recommendations!</Text>
           </View>
         ) : (
-          <View>
-            {guides.map((guide) => (
+          <FlatList
+            data={guides}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
               <GuideCard
-                key={guide._id}
-                guide={guide}
-                onLike={() => handleLike(guide._id)}
-                onDislike={() => handleDislike(guide._id)}
+                guide={item}
+                onLike={handleLike}
+                onDislike={handleDislike}
                 onDelete={handleDeleteGuide}
                 isOwner={true}
               />
-            ))}
-          </View>
+            )}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
+            nestedScrollEnabled={true}
+          />
         )}
         
-        {/* Floating create button */}
         <TouchableOpacity 
           style={styles.floatingCreateButton}
           onPress={() => setIsCreatingGuide(true)}
@@ -755,52 +747,86 @@ const styles = StyleSheet.create({
   guidesContainer: {
     padding: 16,
   },
-  guideCard: {
+  noPostsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+  },
+  noPostsText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+  },
+  noPostsSubText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  createGuideForm: {
+    padding: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
-    padding: 16,
+    margin: 16,
+  },
+  inputGroup: {
+    gap: 12,
     marginBottom: 16,
   },
-  guideHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  guideHeaderLeft: {
+  locationInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
   },
-  guideUserImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  locationIcon: {
+    marginRight: 8,
   },
-  guideUsername: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  guideText: {
+  locationInput: {
+    flex: 1,
     color: '#ffffff',
     fontSize: 16,
-    lineHeight: 24,
-    marginBottom: 16,
+    padding: 12,
   },
-  guideActions: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionCount: {
+  locationNoteInput: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 16,
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    fontStyle: 'italic',
+  },
+  guideInput: {
+    color: '#ffffff',
+    fontSize: 16,
+    minHeight: 100,
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    textAlignVertical: 'top',
+  },
+  submitButton: {
+    backgroundColor: '#FF6B6B',
+    padding: 12,
+    borderRadius: 25,
+    alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   floatingCreateButton: {
     position: 'absolute',
@@ -820,54 +846,5 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-  },
-  createGuideForm: {
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 12,
-    margin: 16,
-  },
-  guideInput: {
-    color: '#ffffff',
-    fontSize: 16,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-  },
-  submitButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: 12,
-    borderRadius: 25,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  deleteButton: {
-    padding: 8,
-    opacity: 0.8,
-  },
-  noPostsContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-    paddingHorizontal: 20,
-  },
-  noPostsText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  noPostsSubText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
   },
 }); 

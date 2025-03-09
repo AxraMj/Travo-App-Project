@@ -15,6 +15,8 @@ exports.createGuide = async (req, res) => {
 
     const guideData = {
       text: req.body.text,
+      location: req.body.location || '',
+      locationNote: req.body.locationNote || '',
       userId: req.user.userId,
       category: req.body.category || 'Other',
       tags: req.body.tags || []
@@ -29,10 +31,25 @@ exports.createGuide = async (req, res) => {
       { $inc: { 'stats.totalGuides': 1 } }
     );
 
+    // Populate user information
     const populatedGuide = await Guide.findById(guide._id)
       .populate('userId', 'username profileImage fullName');
 
-    res.status(201).json(populatedGuide);
+    // Format response
+    const response = {
+      _id: populatedGuide._id,
+      text: populatedGuide.text,
+      location: populatedGuide.location,
+      locationNote: populatedGuide.locationNote,
+      username: populatedGuide.userId.username,
+      userImage: populatedGuide.userId.profileImage,
+      likes: populatedGuide.likes,
+      dislikes: populatedGuide.dislikes,
+      createdAt: populatedGuide.createdAt,
+      updatedAt: populatedGuide.updatedAt
+    };
+
+    res.status(201).json(response);
   } catch (error) {
     console.error('Guide creation error:', error);
     res.status(500).json({ message: 'Failed to create guide' });
@@ -45,7 +62,21 @@ exports.getAllGuides = async (req, res) => {
       .populate('userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
 
-    res.json(guides);
+    // Format response
+    const formattedGuides = guides.map(guide => ({
+      _id: guide._id,
+      text: guide.text,
+      location: guide.location,
+      locationNote: guide.locationNote,
+      username: guide.userId.username,
+      userImage: guide.userId.profileImage,
+      likes: guide.likes,
+      dislikes: guide.dislikes,
+      createdAt: guide.createdAt,
+      updatedAt: guide.updatedAt
+    }));
+
+    res.json(formattedGuides);
   } catch (error) {
     console.error('Get guides error:', error);
     res.status(500).json({ message: 'Failed to fetch guides' });
@@ -59,7 +90,21 @@ exports.getUserGuides = async (req, res) => {
       .populate('userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
 
-    res.json(guides);
+    // Format response
+    const formattedGuides = guides.map(guide => ({
+      _id: guide._id,
+      text: guide.text,
+      location: guide.location,
+      locationNote: guide.locationNote,
+      username: guide.userId.username,
+      userImage: guide.userId.profileImage,
+      likes: guide.likes,
+      dislikes: guide.dislikes,
+      createdAt: guide.createdAt,
+      updatedAt: guide.updatedAt
+    }));
+
+    res.json(formattedGuides);
   } catch (error) {
     console.error('Get user guides error:', error);
     res.status(500).json({ message: 'Failed to fetch user guides' });
