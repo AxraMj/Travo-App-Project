@@ -140,4 +140,96 @@ exports.updateStats = async (req, res) => {
     console.error('Update stats error:', error);
     res.status(500).json({ message: 'Failed to update stats' });
   }
+};
+
+exports.followUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const followerId = req.user.userId;
+
+    // Check if trying to follow self
+    if (userId === followerId) {
+      return res.status(400).json({ message: 'Cannot follow yourself' });
+    }
+
+    // Check if already following
+    const userProfile = await Profile.findOne({ userId });
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const followerProfile = await Profile.findOne({ userId: followerId });
+    if (!followerProfile) {
+      return res.status(404).json({ message: 'Follower profile not found' });
+    }
+
+    const isFollowing = userProfile.followers.includes(followerId);
+    if (isFollowing) {
+      return res.status(400).json({ message: 'Already following this user' });
+    }
+
+    // Add follower/following relationship
+    userProfile.followers.push(followerId);
+    followerProfile.following.push(userId);
+
+    await Promise.all([
+      userProfile.save(),
+      followerProfile.save()
+    ]);
+
+    res.json({
+      message: 'Successfully followed user',
+      followers: userProfile.followers.length,
+      isFollowing: true
+    });
+  } catch (error) {
+    console.error('Follow user error:', error);
+    res.status(500).json({ message: 'Failed to follow user' });
+  }
+};
+
+exports.unfollowUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const followerId = req.user.userId;
+
+    // Check if trying to unfollow self
+    if (userId === followerId) {
+      return res.status(400).json({ message: 'Cannot unfollow yourself' });
+    }
+
+    // Check if following
+    const userProfile = await Profile.findOne({ userId });
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const followerProfile = await Profile.findOne({ userId: followerId });
+    if (!followerProfile) {
+      return res.status(404).json({ message: 'Follower profile not found' });
+    }
+
+    const isFollowing = userProfile.followers.includes(followerId);
+    if (!isFollowing) {
+      return res.status(400).json({ message: 'Not following this user' });
+    }
+
+    // Remove follower/following relationship
+    userProfile.followers = userProfile.followers.filter(id => id.toString() !== followerId);
+    followerProfile.following = followerProfile.following.filter(id => id.toString() !== userId);
+
+    await Promise.all([
+      userProfile.save(),
+      followerProfile.save()
+    ]);
+
+    res.json({
+      message: 'Successfully unfollowed user',
+      followers: userProfile.followers.length,
+      isFollowing: false
+    });
+  } catch (error) {
+    console.error('Unfollow user error:', error);
+    res.status(500).json({ message: 'Failed to unfollow user' });
+  }
 }; 

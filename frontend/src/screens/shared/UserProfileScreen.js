@@ -9,23 +9,28 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
-  FlatList
+  FlatList,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { profileAPI } from '../../services/api';
 import { postsAPI } from '../../services/api';
 import PostCard from '../../components/posts/PostCard';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function UserProfileScreen({ navigation, route }) {
   const { userId } = route.params;
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const fetchUserData = async () => {
     try {
@@ -35,6 +40,8 @@ export default function UserProfileScreen({ navigation, route }) {
       ]);
       setProfile(profileData);
       setPosts(postsData);
+      // Check if current user is following this profile
+      setIsFollowing(profileData.followers?.includes(user.id));
     } catch (error) {
       console.error('Error fetching user data:', error);
     } finally {
@@ -62,6 +69,37 @@ export default function UserProfileScreen({ navigation, route }) {
 
   const handlePostDelete = (postId) => {
     setPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
+  };
+
+  const handleFollowPress = async () => {
+    if (followLoading) return;
+    
+    try {
+      setFollowLoading(true);
+      if (isFollowing) {
+        const response = await profileAPI.unfollowUser(userId);
+        setProfile(prev => ({
+          ...prev,
+          followers: prev.followers.filter(id => id !== user.id)
+        }));
+        setIsFollowing(false);
+      } else {
+        const response = await profileAPI.followUser(userId);
+        setProfile(prev => ({
+          ...prev,
+          followers: [...prev.followers, user.id]
+        }));
+        setIsFollowing(true);
+      }
+    } catch (error) {
+      console.error('Follow/unfollow error:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to update follow status'
+      );
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   const renderPostsContent = () => {
@@ -160,6 +198,27 @@ export default function UserProfileScreen({ navigation, route }) {
             />
             <Text style={styles.name}>{profile.user.fullName}</Text>
             <Text style={styles.username}>@{profile.user.username}</Text>
+            
+            {/* Follow Button */}
+            {user.id !== userId && (
+              <TouchableOpacity
+                style={[
+                  styles.followButton,
+                  isFollowing && styles.followingButton,
+                  followLoading && styles.followButtonDisabled
+                ]}
+                onPress={handleFollowPress}
+                disabled={followLoading}
+              >
+                {followLoading ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.followButtonText}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
             
             {profile.bio && (
               <Text style={styles.bio}>{profile.bio}</Text>
@@ -401,5 +460,25 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 16,
     marginTop: 12,
+  },
+  followButton: {
+    backgroundColor: '#1DA1F2',
+    paddingHorizontal: 32,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginVertical: 16,
+  },
+  followingButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#1DA1F2',
+  },
+  followButtonDisabled: {
+    opacity: 0.7,
+  },
+  followButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

@@ -29,5 +29,25 @@ export const profileAPI = {
       console.error('API Error - updateStats:', error);
       throw error;
     }
+  },
+
+  followUser: async (userId) => {
+    try {
+      const response = await api.post(`/profiles/${userId}/follow`);
+      return response.data;
+    } catch (error) {
+      console.error('API Error - followUser:', error);
+      throw error;
+    }
+  },
+
+  unfollowUser: async (userId) => {
+    try {
+      const response = await api.post(`/profiles/${userId}/unfollow`);
+      return response.data;
+    } catch (error) {
+      console.error('API Error - unfollowUser:', error);
+      throw error;
+    }
   }
 }; 
