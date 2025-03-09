@@ -17,13 +17,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { postsAPI, profileAPI } from '../../services/api';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   const { user } = useAuth();
   const navigation = useNavigation();
+  const route = useRoute();
   const [showComments, setShowComments] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -339,7 +340,7 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
         </TouchableOpacity>
 
         <View style={styles.headerRight}>
-          {user.id !== localPost.userId._id && (
+          {user.id !== localPost.userId._id && route.name !== 'UserProfile' && (
             <TouchableOpacity
               style={[
                 styles.followButton,
