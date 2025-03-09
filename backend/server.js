@@ -2,24 +2,95 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const http = require('http');
+const WebSocket = require('ws');
+const jwt = require('jsonwebtoken');
 const authRoutes = require('./routes/auth');
 const guideRoutes = require('./routes/guide');
 const postRoutes = require('./routes/post');
 const profileRoutes = require('./routes/profile');
+const notificationRoutes = require('./routes/notification');
 const auth = require('./middleware/auth');
 
 const app = express();
+const server = http.createServer(app);
+
+// WebSocket server setup
+const wss = new WebSocket.Server({ server });
+
+// Store WebSocket connections with user IDs
+const clients = new Map();
+
+wss.on('connection', (ws, req) => {
+  console.log('New WebSocket connection attempt');
+  
+  // Extract token from query string
+  const url = new URL(req.url, `ws://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  
+  if (!token) {
+    console.log('WebSocket connection rejected: No token provided');
+    ws.close();
+    return;
+  }
+
+  try {
+    // Verify token and get user ID
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    console.log('WebSocket authenticated for user:', userId);
+
+    // Store the connection
+    clients.set(userId, ws);
+    console.log('Active WebSocket connections:', clients.size);
+
+    // Send a welcome message to confirm connection
+    ws.send(JSON.stringify({
+      event: 'connected',
+      data: { message: 'Successfully connected to notifications' }
+    }));
+
+    ws.on('close', () => {
+      console.log('WebSocket disconnected for user:', userId);
+      clients.delete(userId);
+      console.log('Remaining active connections:', clients.size);
+    });
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error for user:', userId, error);
+    });
+  } catch (error) {
+    console.error('WebSocket authentication error:', error);
+    ws.close();
+  }
+});
+
+// Make WebSocket server available globally
+global.io = {
+  to: (userId) => ({
+    emit: (event, data) => {
+      const client = clients.get(userId);
+      if (client && client.readyState === WebSocket.OPEN) {
+        console.log('Emitting event to user:', userId, { event, data });
+        client.send(JSON.stringify({ event, data }));
+      } else {
+        console.log('Client not found or connection not open for user:', userId);
+      }
+    }
+  })
+};
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Increase limit for base64 images
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/guides', auth, guideRoutes);
-app.use('/api/posts', postRoutes);  // Remove auth middleware here since it's handled in routes
+app.use('/api/posts', postRoutes);
 app.use('/api/profiles', auth, profileRoutes);
+app.use('/api/notifications', auth, notificationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -45,6 +116,7 @@ mongoose.connect(process.env.MONGODB_URI)
   });
 
 // Start server
-app.listen(PORT, YOUR_IP, () => {
+server.listen(PORT, YOUR_IP, () => {
   console.log(`Server running on http://${YOUR_IP}:${PORT}`);
+  console.log(`WebSocket server running on ws://${YOUR_IP}:${PORT}`);
 }); 

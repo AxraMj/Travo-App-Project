@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -30,15 +30,20 @@ export default function PostCard({ post, onPostUpdate }) {
   const likeScale = useRef(new Animated.Value(1)).current;
   const saveScale = useRef(new Animated.Value(1)).current;
 
+  // Update localPost when post prop changes
+  useEffect(() => {
+    setLocalPost(post);
+  }, [post]);
+
   // Handle like animation
-  const animateScale = (scale) => {
+  const animateScale = (scaleValue) => {
     Animated.sequence([
-      Animated.spring(scale, {
+      Animated.spring(scaleValue, {
         toValue: 1.2,
         duration: 150,
         useNativeDriver: true,
       }),
-      Animated.spring(scale, {
+      Animated.spring(scaleValue, {
         toValue: 1,
         duration: 150,
         useNativeDriver: true,
@@ -51,10 +56,15 @@ export default function PostCard({ post, onPostUpdate }) {
       animateScale(likeScale);
       const updatedPost = await postsAPI.likePost(localPost._id);
       setLocalPost(updatedPost);
-      if (onPostUpdate) onPostUpdate(updatedPost);
+      if (onPostUpdate) {
+        onPostUpdate(updatedPost);
+      }
     } catch (error) {
       console.error('Like error:', error);
-      Alert.alert('Error', 'Failed to like post');
+      Alert.alert(
+        'Error',
+        'Failed to like post. Please try again.'
+      );
     }
   };
 

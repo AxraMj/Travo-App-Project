@@ -1,6 +1,8 @@
 const Post = require('../models/Post');
 const User = require('../models/User');
 const Profile = require('../models/Profile');
+const { createNotification } = require('./notificationController');
+const mongoose = require('mongoose');
 
 exports.createPost = async (req, res) => {
   try {
@@ -104,32 +106,66 @@ exports.likePost = async (req, res) => {
     const { postId } = req.params;
     const userId = req.user.userId;
 
-    const post = await Post.findById(postId);
+    console.log('Like post request:', { postId, userId });
+
+    // Validate postId
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      console.error('Invalid post ID:', postId);
+      return res.status(400).json({ message: 'Invalid post ID' });
+    }
+
+    // Find post and populate necessary fields
+    const post = await Post.findById(postId)
+      .populate('userId', 'username profileImage fullName');
+
     if (!post) {
+      console.error('Post not found:', postId);
       return res.status(404).json({ message: 'Post not found' });
     }
+
+    console.log('Found post:', post._id);
 
     const hasLiked = post.likes.includes(userId);
     if (hasLiked) {
       // Unlike
-      post.likes.pull(userId);
+      console.log('Removing like');
+      post.likes = post.likes.filter(id => id.toString() !== userId);
+      
       // Update profile stats
       await Profile.findOneAndUpdate(
-        { userId: post.userId },
+        { userId: post.userId._id },
         { $inc: { 'stats.totalLikes': -1 } }
       );
     } else {
       // Like
+      console.log('Adding like');
       post.likes.push(userId);
+      
       // Update profile stats
       await Profile.findOneAndUpdate(
-        { userId: post.userId },
+        { userId: post.userId._id },
         { $inc: { 'stats.totalLikes': 1 } }
       );
+      
+      // Create notification for post owner
+      if (post.userId._id.toString() !== userId) {
+        try {
+          await createNotification(
+            post.userId._id,
+            userId,
+            'like',
+            { postId: post._id }
+          );
+        } catch (notifError) {
+          console.error('Notification creation error:', notifError);
+          // Don't fail the like operation if notification fails
+        }
+      }
     }
 
     await post.save();
 
+    // Re-fetch the post to get updated data
     const updatedPost = await Post.findById(postId)
       .populate('userId', 'username profileImage fullName')
       .populate('comments.userId', 'username profileImage fullName');
@@ -138,10 +174,14 @@ exports.likePost = async (req, res) => {
     postObj.isLiked = updatedPost.likes.includes(userId);
     postObj.isSaved = updatedPost.savedBy.includes(userId);
 
+    console.log('Successfully processed like/unlike');
     res.json(postObj);
   } catch (error) {
     console.error('Like post error:', error);
-    res.status(500).json({ message: 'Failed to like post' });
+    res.status(500).json({ 
+      message: 'Failed to like post',
+      error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+    });
   }
 };
 
@@ -203,6 +243,11 @@ exports.addComment = async (req, res) => {
     });
 
     await post.save();
+
+    // Create notification for post owner
+    if (post.userId.toString() !== userId) {
+      await createNotification(post.userId, userId, postId, 'comment');
+    }
 
     const updatedPost = await Post.findById(postId)
       .populate('userId', 'username profileImage fullName')

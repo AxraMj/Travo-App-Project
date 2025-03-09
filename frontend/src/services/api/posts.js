@@ -33,10 +33,12 @@ export const postsAPI = {
 
   likePost: async (postId) => {
     try {
+      console.log('Sending like request for post:', postId);
       const response = await api.post(`/posts/${postId}/like`);
+      console.log('Like response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('API Error - likePost:', error);
+      console.error('API Error - likePost:', error.response?.data || error);
       throw error;
     }
   },
