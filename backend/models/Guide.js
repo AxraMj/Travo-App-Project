@@ -41,4 +41,18 @@ const guideSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Virtual field for user information
+guideSchema.virtual('user', {
+  ref: 'User',
+  localField: 'userId',
+  foreignField: '_id',
+  justOne: true
+});
+
+// Add indexes for better performance
+guideSchema.index({ userId: 1, createdAt: -1 });
+guideSchema.index({ location: 1 });
+guideSchema.index({ likedBy: 1 });
+guideSchema.index({ dislikedBy: 1 });
+
 module.exports = mongoose.model('Guide', guideSchema); 

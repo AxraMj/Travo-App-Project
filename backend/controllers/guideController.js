@@ -5,53 +5,45 @@ const mongoose = require('mongoose');
 
 exports.createGuide = async (req, res) => {
   try {
-    if (!req.user || !req.user.userId) {
-      return res.status(401).json({ message: 'User not authenticated' });
+    const { text, location, locationNote } = req.body;
+    const userId = req.user.userId;
+
+    // Get user data
+    const user = await User.findById(userId).select('username profileImage');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    if (!req.body.text) {
-      return res.status(400).json({ message: 'Guide text is required' });
-    }
+    const guide = new Guide({
+      userId,
+      text,
+      location,
+      locationNote,
+      likes: 0,
+      dislikes: 0
+    });
 
-    const guideData = {
-      text: req.body.text,
-      location: req.body.location || '',
-      locationNote: req.body.locationNote || '',
-      userId: req.user.userId,
-      category: req.body.category || 'Other',
-      tags: req.body.tags || []
-    };
-
-    const guide = new Guide(guideData);
     await guide.save();
 
-    // Update user's profile stats
-    await Profile.findOneAndUpdate(
-      { userId: req.user.userId },
-      { $inc: { 'stats.totalGuides': 1 } }
-    );
-
-    // Populate user information
-    const populatedGuide = await Guide.findById(guide._id)
-      .populate('userId', 'username profileImage fullName');
-
-    // Format response
-    const response = {
-      _id: populatedGuide._id,
-      text: populatedGuide.text,
-      location: populatedGuide.location,
-      locationNote: populatedGuide.locationNote,
-      username: populatedGuide.userId.username,
-      userImage: populatedGuide.userId.profileImage,
-      likes: populatedGuide.likes,
-      dislikes: populatedGuide.dislikes,
-      createdAt: populatedGuide.createdAt,
-      updatedAt: populatedGuide.updatedAt
+    // Format response with user information
+    const formattedGuide = {
+      _id: guide._id,
+      text: guide.text,
+      location: guide.location,
+      locationNote: guide.locationNote,
+      username: user.username,
+      userImage: user.profileImage,
+      likes: guide.likes,
+      dislikes: guide.dislikes,
+      hasLiked: false,
+      hasDisliked: false,
+      createdAt: guide.createdAt,
+      updatedAt: guide.updatedAt
     };
 
-    res.status(201).json(response);
+    res.status(201).json(formattedGuide);
   } catch (error) {
-    console.error('Guide creation error:', error);
+    console.error('Create guide error:', error);
     res.status(500).json({ message: 'Failed to create guide' });
   }
 };
@@ -88,9 +80,11 @@ exports.getUserGuides = async (req, res) => {
     const { userId } = req.params;
     const guides = await Guide.find({ userId })
       .populate('userId', 'username profileImage fullName')
+      .populate('likedBy', 'username profileImage')
+      .populate('dislikedBy', 'username profileImage')
       .sort({ createdAt: -1 });
 
-    // Format response
+    // Format response with user information
     const formattedGuides = guides.map(guide => ({
       _id: guide._id,
       text: guide.text,
@@ -100,6 +94,8 @@ exports.getUserGuides = async (req, res) => {
       userImage: guide.userId.profileImage,
       likes: guide.likes,
       dislikes: guide.dislikes,
+      hasLiked: req.user ? guide.likedBy.some(user => user._id.toString() === req.user.userId) : false,
+      hasDisliked: req.user ? guide.dislikedBy.some(user => user._id.toString() === req.user.userId) : false,
       createdAt: guide.createdAt,
       updatedAt: guide.updatedAt
     }));

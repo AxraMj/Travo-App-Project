@@ -16,7 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { profileAPI } from '../../services/api';
 import { postsAPI } from '../../services/api';
+import { guidesAPI } from '../../services/api';
 import PostCard from '../../components/posts/PostCard';
+import GuideCard from '../../components/guides/GuideCard';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +28,7 @@ export default function UserProfileScreen({ navigation, route }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [guides, setGuides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
@@ -34,13 +37,14 @@ export default function UserProfileScreen({ navigation, route }) {
 
   const fetchUserData = async () => {
     try {
-      const [profileData, postsData] = await Promise.all([
+      const [profileData, postsData, guidesData] = await Promise.all([
         profileAPI.getProfile(userId),
-        postsAPI.getUserPosts(userId)
+        postsAPI.getUserPosts(userId),
+        guidesAPI.getUserGuides(userId)
       ]);
       setProfile(profileData);
       setPosts(postsData);
-      // Check if current user is following this profile
+      setGuides(guidesData);
       setIsFollowing(profileData.followers?.includes(user.id));
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -102,6 +106,46 @@ export default function UserProfileScreen({ navigation, route }) {
     }
   };
 
+  const handleLikeGuide = async (guideId) => {
+    try {
+      const updatedGuide = await guidesAPI.likeGuide(guideId);
+      setGuides(currentGuides => 
+        currentGuides.map(guide => 
+          guide._id === guideId ? updatedGuide : guide
+        )
+      );
+    } catch (error) {
+      console.error('Error liking guide:', error);
+      Alert.alert('Error', 'Failed to like guide');
+    }
+  };
+
+  const handleDislikeGuide = async (guideId) => {
+    try {
+      const updatedGuide = await guidesAPI.dislikeGuide(guideId);
+      setGuides(currentGuides => 
+        currentGuides.map(guide => 
+          guide._id === guideId ? updatedGuide : guide
+        )
+      );
+    } catch (error) {
+      console.error('Error disliking guide:', error);
+      Alert.alert('Error', 'Failed to dislike guide');
+    }
+  };
+
+  const handleDeleteGuide = async (guideId) => {
+    try {
+      await guidesAPI.deleteGuide(guideId);
+      setGuides(currentGuides => 
+        currentGuides.filter(guide => guide._id !== guideId)
+      );
+    } catch (error) {
+      console.error('Error deleting guide:', error);
+      Alert.alert('Error', 'Failed to delete guide');
+    }
+  };
+
   const renderPostsContent = () => {
     if (posts.length === 0) {
       return (
@@ -127,12 +171,27 @@ export default function UserProfileScreen({ navigation, route }) {
   };
 
   const renderGuideContent = () => {
-    return (
-      <View style={styles.guidesContainer}>
+    if (!guides || guides.length === 0) {
+      return (
         <View style={styles.emptyContainer}>
           <Ionicons name="book-outline" size={48} color="rgba(255,255,255,0.5)" />
           <Text style={styles.emptyText}>No guides yet</Text>
         </View>
+      );
+    }
+
+    return (
+      <View style={styles.guidesContainer}>
+        {guides.map(guide => (
+          <GuideCard
+            key={guide._id}
+            guide={guide}
+            onLike={handleLikeGuide}
+            onDislike={handleDislikeGuide}
+            onDelete={handleDeleteGuide}
+            isOwner={user.id === userId}
+          />
+        ))}
       </View>
     );
   };
@@ -451,6 +510,7 @@ const styles = StyleSheet.create({
   },
   guidesContainer: {
     padding: 16,
+    gap: 12,
   },
   emptyContainer: {
     alignItems: 'center',
