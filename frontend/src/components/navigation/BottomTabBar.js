@@ -1,8 +1,24 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNotifications } from '../../context/NotificationContext';
 
 export default function BottomTabBar({ state, navigation }) {
+  const { unreadCount, fetchUnreadCount, wsConnected } = useNotifications();
+
+  useEffect(() => {
+    console.log('BottomTabBar - Current unread count:', unreadCount);
+    console.log('BottomTabBar - WebSocket connected:', wsConnected);
+  }, [unreadCount, wsConnected]);
+
+  // Fetch notifications when the notifications tab is focused
+  useEffect(() => {
+    if (state.index === 3) {
+      console.log('Notifications tab focused, fetching notifications...');
+      fetchUnreadCount();
+    }
+  }, [state.index]);
+
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -40,13 +56,25 @@ export default function BottomTabBar({ state, navigation }) {
 
       <TouchableOpacity 
         style={styles.tabItem} 
-        onPress={() => navigation.navigate('Notifications')}
+        onPress={() => {
+          console.log('Navigating to notifications screen');
+          navigation.navigate('Notifications');
+        }}
       >
-        <Ionicons 
-          name={state.index === 3 ? "notifications" : "notifications-outline"} 
-          size={24} 
-          color={state.index === 3 ? "#ffffff" : "rgba(255,255,255,0.7)"} 
-        />
+        <View>
+          <Ionicons 
+            name={state.index === 3 ? "notifications" : "notifications-outline"} 
+            size={24} 
+            color={state.index === 3 ? "#ffffff" : "rgba(255,255,255,0.7)"} 
+          />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity 
@@ -75,5 +103,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    right: -6,
+    top: -6,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#232526',
+    zIndex: 1,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 }); 

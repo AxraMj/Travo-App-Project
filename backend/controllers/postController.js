@@ -227,31 +227,59 @@ exports.addComment = async (req, res) => {
     const { text } = req.body;
     const userId = req.user.userId;
 
-    if (!text) {
+    console.log('Adding comment:', { postId, userId, text });
+
+    // Validate inputs
+    if (!text || !text.trim()) {
       return res.status(400).json({ message: 'Comment text is required' });
     }
 
+    if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      return res.status(400).json({ message: 'Invalid post ID' });
+    }
+
+    // Find the post
     const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    post.comments.push({
+    // Create new comment
+    const newComment = {
       userId,
-      text,
+      text: text.trim(),
       createdAt: new Date()
-    });
+    };
 
+    // Add comment to post
+    post.comments.push(newComment);
     await post.save();
+
+    console.log('Comment added successfully');
 
     // Create notification for post owner
     if (post.userId.toString() !== userId) {
-      await createNotification(post.userId, userId, postId, 'comment');
+      try {
+        await createNotification(
+          post.userId,
+          userId,
+          'comment',
+          { postId: post._id }
+        );
+      } catch (notifError) {
+        console.error('Error creating notification:', notifError);
+        // Don't fail the comment operation if notification fails
+      }
     }
 
+    // Fetch updated post with populated fields
     const updatedPost = await Post.findById(postId)
       .populate('userId', 'username profileImage fullName')
       .populate('comments.userId', 'username profileImage fullName');
+
+    if (!updatedPost) {
+      return res.status(500).json({ message: 'Error fetching updated post' });
+    }
 
     const postObj = updatedPost.toObject();
     postObj.isLiked = updatedPost.likes.includes(userId);
@@ -260,7 +288,10 @@ exports.addComment = async (req, res) => {
     res.json(postObj);
   } catch (error) {
     console.error('Add comment error:', error);
-    res.status(500).json({ message: 'Failed to add comment' });
+    res.status(500).json({ 
+      message: 'Failed to add comment',
+      error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+    });
   }
 };
 

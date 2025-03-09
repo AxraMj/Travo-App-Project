@@ -124,57 +124,59 @@ exports.markAllAsRead = async (req, res) => {
   }
 };
 
-exports.createNotification = async (userId, triggeredBy, type, data = {}) => {
+exports.createNotification = async (recipientId, triggeredById, type, data = {}) => {
   try {
-    console.log('Creating notification:', { userId, triggeredBy, type, data });
-
-    // Don't create notification if user is interacting with their own content
-    if (userId.toString() === triggeredBy.toString()) {
-      console.log('Skipping notification for self-interaction');
+    // Skip if recipient is the same as triggerer
+    if (recipientId.toString() === triggeredById.toString()) {
+      console.log('Skipping self-notification');
       return null;
     }
 
-    // Check if a similar notification exists within the last hour
-    const recentNotification = await Notification.findOne({
-      userId,
-      triggeredBy,
+    // Check for existing similar notification in the last hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const existingNotification = await Notification.findOne({
+      userId: recipientId,
+      triggeredBy: triggeredById,
       type,
       postId: data.postId,
-      createdAt: { $gte: new Date(Date.now() - 60 * 60 * 1000) }
+      createdAt: { $gte: oneHourAgo }
     });
 
-    if (recentNotification) {
-      console.log('Similar recent notification exists, skipping');
+    if (existingNotification) {
+      console.log('Similar notification exists within the last hour, skipping...');
       return null;
     }
 
+    // Create new notification
     const notification = new Notification({
-      userId,
-      triggeredBy,
+      userId: recipientId,
+      triggeredBy: triggeredById,
       type,
-      ...data,
+      postId: data.postId,
+      commentId: data.commentId,
+      message: data.message,
       read: false
     });
 
     await notification.save();
-
-    // Populate the notification before sending
+    
+    // Populate notification data for WebSocket
     const populatedNotification = await Notification.findById(notification._id)
       .populate('triggeredBy', 'username profileImage')
       .populate('postId', 'image');
-
-    // Emit real-time notification through WebSocket
+    
+    // Emit notification through WebSocket if available
     if (global.io) {
-      console.log('Emitting notification to user:', userId);
-      global.io.to(userId.toString()).emit('notification', {
+      console.log('Emitting notification to user:', recipientId);
+      global.io.to(recipientId.toString()).emit('notification', {
         event: 'notification',
         data: populatedNotification
       });
     } else {
-      console.log('WebSocket io not available');
+      console.log('WebSocket not available for notification');
     }
 
-    return notification;
+    return populatedNotification;
   } catch (error) {
     console.error('Create notification error:', error);
     throw error;

@@ -81,17 +81,44 @@ export default function PostCard({ post, onPostUpdate }) {
   };
 
   const handleComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim()) {
+      Alert.alert('Error', 'Please enter a comment');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
-      const updatedPost = await postsAPI.addComment(localPost._id, { text: newComment });
+      console.log('Adding comment to post:', localPost._id);
+      console.log('Comment text:', newComment.trim());
+      
+      const updatedPost = await postsAPI.addComment(localPost._id, { 
+        text: newComment.trim() 
+      });
+      
+      console.log('Comment added successfully');
       setLocalPost(updatedPost);
       setNewComment('');
       if (onPostUpdate) onPostUpdate(updatedPost);
+      
+      // Show success message
+      Alert.alert('Success', 'Comment added successfully');
+      
+      // Close comments modal after successful comment
+      setShowComments(false);
     } catch (error) {
-      console.error('Comment error:', error);
-      Alert.alert('Error', 'Failed to add comment');
+      console.error('Comment error:', error.response?.data || error);
+      
+      // Determine the error message
+      let errorMessage = 'Failed to add comment. Please try again.';
+      if (error.response?.status === 404) {
+        errorMessage = 'Post not found or has been deleted.';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Please log in to comment.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsSubmitting(false);
     }
