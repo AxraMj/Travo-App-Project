@@ -13,6 +13,7 @@ import SavedScreen from './src/screens/shared/SavedScreen';
 import ProfileScreen from './src/screens/creator/ProfileScreen';
 import EditProfileScreen from './src/screens/creator/EditProfileScreen';
 import NotificationsScreen from './src/screens/creator/NotificationsScreen';
+import UserProfileScreen from './src/screens/shared/UserProfileScreen';
 import { AuthProvider } from './src/context/AuthContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
@@ -54,6 +55,7 @@ export default function App() {
             <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="Saved" component={SavedScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="UserProfile" component={UserProfileScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen 
               name="EditProfile" 

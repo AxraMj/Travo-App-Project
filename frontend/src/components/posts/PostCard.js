@@ -17,11 +17,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { postsAPI } from '../../services/api';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
 export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   const { user } = useAuth();
+  const navigation = useNavigation();
   const [showComments, setShowComments] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -35,6 +37,14 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   useEffect(() => {
     setLocalPost(post);
   }, [post]);
+
+  const handleUserPress = (userId) => {
+    if (userId === user.id) {
+      navigation.navigate('Profile');
+    } else {
+      navigation.navigate('UserProfile', { userId });
+    }
+  };
 
   // Handle like animation
   const animateScale = (scaleValue) => {
@@ -210,25 +220,27 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   };
 
   const renderComment = ({ item }) => (
-    <View style={styles.commentItem}>
-      <Image 
-        source={{ 
-          uri: item.userId?.profileImage || 'https://via.placeholder.com/150'
-        }} 
-        style={styles.commentAvatar}
-      />
-      <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>
-          {item.userId?.username || 'Unknown User'}
-        </Text>
-        <Text style={styles.commentText}>{item.text}</Text>
-      </View>
-      {(user?.id === item.userId?._id || user?.id === localPost.userId?._id) && (
-        <TouchableOpacity 
-          style={styles.deleteComment}
+    <View style={styles.commentContainer}>
+      <TouchableOpacity 
+        style={styles.commentUserInfo}
+        onPress={() => handleUserPress(item.userId._id)}
+      >
+        <Image
+          source={{ uri: item.userId.profileImage }}
+          style={styles.commentUserImage}
+        />
+        <View style={styles.commentContent}>
+          <Text style={styles.commentUsername}>{item.userId.username}</Text>
+          <Text style={styles.commentText}>{item.text}</Text>
+        </View>
+      </TouchableOpacity>
+      
+      {(user.id === item.userId._id || user.id === localPost.userId._id) && (
+        <TouchableOpacity
+          style={styles.deleteCommentButton}
           onPress={() => handleDeleteComment(item._id)}
         >
-          <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+          <Ionicons name="trash-outline" size={16} color="rgba(255,255,255,0.6)" />
         </TouchableOpacity>
       )}
     </View>
@@ -272,129 +284,127 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.contentContainer}>
-        {/* Profile Image */}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.userInfo}
+          onPress={() => handleUserPress(localPost.userId._id)}
+        >
+          <Image
+            source={{ uri: localPost.userId.profileImage }}
+            style={styles.profileImage}
+          />
+          <View>
+            <Text style={styles.username}>{localPost.userId.username}</Text>
+            <Text style={styles.location}>{localPost.location.name}</Text>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.moreButton}
+          onPress={() => setShowSettings(true)}
+        >
+          <Ionicons name="ellipsis-horizontal" size={24} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Post Image */}
+      {localPost.image && (
         <Image 
-          source={{ uri: localPost.userId.profileImage }} 
-          style={styles.profileImage} 
+          source={{ uri: localPost.image }} 
+          style={styles.postImage}
+          resizeMode="cover"
         />
+      )}
 
-        {/* Main Content */}
-        <View style={styles.mainContent}>
-          {/* User Info Header */}
-          <View style={styles.userInfo}>
-            <View style={styles.nameContainer}>
-              <Text style={styles.fullName}>{localPost.userId.fullName}</Text>
-              <Text style={styles.username}>@{localPost.userId.username}</Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.moreButton}
-              onPress={() => setShowSettings(true)}
-            >
-              <Ionicons name="ellipsis-horizontal" size={18} color="rgba(255,255,255,0.5)" />
-            </TouchableOpacity>
+      {/* Post Content */}
+      <View style={styles.content}>
+        {/* Description */}
+        {localPost.description && (
+          <Text style={styles.description}>{localPost.description}</Text>
+        )}
+
+        {/* Location and Weather */}
+        <View style={styles.locationWeather}>
+          <View style={styles.locationContainer}>
+            <Ionicons name="location-sharp" size={14} color="#FF6B6B" />
+            <Text style={styles.locationText}>{localPost.location.name}</Text>
           </View>
-
-          {/* Post Text */}
-          {localPost.description && (
-            <Text style={styles.description}>{localPost.description}</Text>
-          )}
-
-          {/* Post Image */}
-          {localPost.image && (
-            <Image 
-              source={{ uri: localPost.image }} 
-              style={styles.postImage}
-              resizeMode="cover"
-            />
-          )}
-
-          {/* Location and Weather */}
-          <View style={styles.locationWeather}>
-            <View style={styles.locationContainer}>
-              <Ionicons name="location-sharp" size={14} color="#FF6B6B" />
-              <Text style={styles.location}>{localPost.location.name}</Text>
-            </View>
-            <View style={styles.weatherContainer}>
-              <Ionicons name="partly-sunny" size={14} color="#FFD93D" />
-              <Text style={styles.temperature}>{localPost.weather.temp}°C</Text>
-            </View>
+          <View style={styles.weatherContainer}>
+            <Ionicons name="partly-sunny" size={14} color="#FFD93D" />
+            <Text style={styles.temperature}>{localPost.weather.temp}°C</Text>
           </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actions}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => setShowComments(true)}
-            >
-              <Ionicons 
-                name="chatbubble-outline" 
-                size={20} 
-                color="rgba(255,255,255,0.7)" 
-              />
-              <Text style={styles.actionText}>{localPost.comments.length}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={handleLike}
-            >
-              <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-                <Ionicons 
-                  name={localPost.isLiked ? "heart" : "heart-outline"} 
-                  size={20} 
-                  color={localPost.isLiked ? "#FF6B6B" : "rgba(255,255,255,0.7)"} 
-                />
-              </Animated.View>
-              <Text style={styles.actionText}>{localPost.likes.length}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => setShowTips(!showTips)}
-            >
-              <Ionicons 
-                name="bulb-outline" 
-                size={20} 
-                color={showTips ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
-              />
-              <Text style={styles.actionText}>{localPost.travelTips.length}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={handleSave}
-            >
-              <Animated.View style={{ transform: [{ scale: saveScale }] }}>
-                <Ionicons 
-                  name={localPost.isSaved ? "bookmark" : "bookmark-outline"} 
-                  size={20} 
-                  color={localPost.isSaved ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
-                />
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Travel Tips Section */}
-          {showTips && (
-            <View style={styles.tipsSection}>
-              <View style={styles.tipsSectionHeader}>
-                <Ionicons name="bulb" size={18} color="#FFD93D" />
-                <Text style={styles.tipsSectionTitle}>Travel Tips</Text>
-              </View>
-              {localPost.travelTips.length === 0 ? (
-                <Text style={styles.noTips}>No travel tips available</Text>
-              ) : (
-                localPost.travelTips.map((tip, index) => (
-                  <View key={index} style={styles.tipItem}>
-                    <Text style={styles.tipBullet}>•</Text>
-                    <Text style={styles.tipText}>{tip}</Text>
-                  </View>
-                ))
-              )}
-            </View>
-          )}
         </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => setShowComments(true)}
+          >
+            <Ionicons 
+              name="chatbubble-outline" 
+              size={24} 
+              color="rgba(255,255,255,0.7)" 
+            />
+            <Text style={styles.actionText}>{localPost.comments.length}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleLike}
+          >
+            <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+              <Ionicons 
+                name={localPost.isLiked ? "heart" : "heart-outline"} 
+                size={24} 
+                color={localPost.isLiked ? "#FF6B6B" : "rgba(255,255,255,0.7)"} 
+              />
+            </Animated.View>
+            <Text style={styles.actionText}>{localPost.likes.length}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => setShowTips(!showTips)}
+          >
+            <Ionicons 
+              name="bulb-outline" 
+              size={24} 
+              color={showTips ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
+            />
+            <Text style={styles.actionText}>{localPost.travelTips.length}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleSave}
+          >
+            <Animated.View style={{ transform: [{ scale: saveScale }] }}>
+              <Ionicons 
+                name={localPost.isSaved ? "bookmark" : "bookmark-outline"} 
+                size={24} 
+                color={localPost.isSaved ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
+              />
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Travel Tips Section */}
+        {showTips && (
+          <View style={styles.tipsSection}>
+            <View style={styles.tipsSectionHeader}>
+              <Ionicons name="bulb" size={18} color="#FFD93D" />
+              <Text style={styles.tipsSectionTitle}>Travel Tips</Text>
+            </View>
+            {localPost.travelTips.map((tip, index) => (
+              <View key={index} style={styles.tipItem}>
+                <Text style={styles.tipBullet}>•</Text>
+                <Text style={styles.tipText}>{tip}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Comments Modal */}
@@ -464,59 +474,52 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'rgba(255,255,255,0.05)',
-    marginHorizontal: 16,
-    marginVertical: 8,
     borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 12,
   },
-  contentContainer: {
+  userInfo: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   profileImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#FF6B6B',
-  },
-  mainContent: {
-    flex: 1,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  nameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  fullName: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
   },
   username: {
-    color: 'rgba(255,255,255,0.5)',
+    color: '#ffffff',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  location: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    marginTop: 2,
   },
   moreButton: {
-    padding: 4,
+    padding: 8,
+  },
+  postImage: {
+    width: '100%',
+    height: width * 0.6,
+  },
+  content: {
+    padding: 12,
   },
   description: {
     color: '#ffffff',
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 10,
-  },
-  postImage: {
-    width: '100%',
-    height: width * 0.5,
-    borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   locationWeather: {
     flexDirection: 'row',
@@ -532,9 +535,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  location: {
-    color: '#FF6B6B',
-    fontSize: 13,
+  locationText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
   },
   weatherContainer: {
     flexDirection: 'row',
@@ -547,17 +550,51 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 24,
+    alignItems: 'center',
+    gap: 20,
+    marginBottom: 12,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    padding: 6,
   },
   actionText: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
+    fontSize: 14,
+  },
+  tipsSection: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
+    padding: 12,
+  },
+  tipsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tipsSectionTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  tipBullet: {
+    color: '#FFD93D',
+    fontSize: 16,
+    marginRight: 8,
+    marginTop: -2,
+  },
+  tipText: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 20,
   },
   modalContainer: {
     flex: 1,
@@ -591,32 +628,38 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingVertical: 16,
   },
-  commentItem: {
+  commentContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  commentAvatar: {
+  commentUserInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentUserImage: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    marginRight: 12,
   },
   commentContent: {
     flex: 1,
   },
   commentUsername: {
     color: '#ffffff',
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
   },
   commentText: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
-    lineHeight: 20,
   },
-  deleteComment: {
-    padding: 4,
+  deleteCommentButton: {
+    padding: 8,
   },
   noComments: {
     color: 'rgba(255,255,255,0.5)',
@@ -642,45 +685,6 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     padding: 8,
-  },
-  tipsSection: {
-    marginTop: 12,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 8,
-    padding: 12,
-  },
-  tipsSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  tipsSectionTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  tipBullet: {
-    color: '#FFD93D',
-    fontSize: 16,
-    marginRight: 8,
-    marginTop: -2,
-  },
-  tipText: {
-    flex: 1,
-    color: '#ffffff',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  noTips: {
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
