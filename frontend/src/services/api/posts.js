@@ -98,5 +98,15 @@ export const postsAPI = {
       console.error('API Error - deletePost:', error);
       throw error;
     }
+  },
+
+  getFollowedPosts: async () => {
+    try {
+      const response = await api.get('/posts/following');
+      return response.data;
+    } catch (error) {
+      console.error('API Error - getFollowedPosts:', error);
+      throw error;
+    }
   }
 }; 

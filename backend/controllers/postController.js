@@ -52,9 +52,20 @@ exports.createPost = async (req, res) => {
   }
 };
 
-exports.getAllPosts = async (req, res) => {
+exports.getFollowedPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Get the list of users that the current user follows
+    const userProfile = await Profile.findOne({ userId: req.user.userId });
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    // Get posts from followed users
+    const posts = await Post.find({ userId: { $in: userProfile.following } })
       .populate('userId', 'username profileImage fullName')
       .populate('comments.userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
@@ -62,10 +73,41 @@ exports.getAllPosts = async (req, res) => {
     // Add isLiked and isSaved fields for the current user
     const enhancedPosts = posts.map(post => {
       const postObj = post.toObject();
-      if (req.user) {
-        postObj.isLiked = post.likes.includes(req.user.userId);
-        postObj.isSaved = post.savedBy.includes(req.user.userId);
-      }
+      postObj.isLiked = post.likes.includes(req.user.userId);
+      postObj.isSaved = post.savedBy.includes(req.user.userId);
+      return postObj;
+    });
+
+    res.json(enhancedPosts);
+  } catch (error) {
+    console.error('Get followed posts error:', error);
+    res.status(500).json({ message: 'Failed to fetch followed posts' });
+  }
+};
+
+exports.getAllPosts = async (req, res) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Get the list of users that the current user follows
+    const userProfile = await Profile.findOne({ userId: req.user.userId });
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
+    // Get posts from non-followed users
+    const posts = await Post.find({ userId: { $nin: userProfile.following } })
+      .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName')
+      .sort({ createdAt: -1 });
+
+    // Add isLiked and isSaved fields for the current user
+    const enhancedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      postObj.isLiked = post.likes.includes(req.user.userId);
+      postObj.isSaved = post.savedBy.includes(req.user.userId);
       return postObj;
     });
 

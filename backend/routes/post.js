@@ -3,11 +3,14 @@ const postController = require('../controllers/postController');
 const auth = require('../middleware/auth');
 
 // Public routes (no auth required)
-router.get('/', postController.getAllPosts);
 router.get('/user/:userId', postController.getUserPosts);
 
 // Protected routes (auth required)
-router.use(auth); // Apply auth middleware to all routes below
+router.use(auth);
+
+// Get posts
+router.get('/', postController.getAllPosts);
+router.get('/following', postController.getFollowedPosts);
 
 // Create a new post
 router.post('/', postController.createPost);

@@ -20,24 +20,26 @@ import { postsAPI } from '../../services/api/';
 
 export default function CreatorHomeScreen({ navigation }) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('forYou');
   const [posts, setPosts] = useState([]);
   const [followingPosts, setFollowingPosts] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('forYou');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchPosts = async () => {
     try {
-      setLoading(true);
       setError(null);
+      setLoading(true);
       
-      const data = await postsAPI.getAllPosts();
-      const postsArray = Array.isArray(data) ? data : [];
-      const validPosts = postsArray.filter(post => post && post.userId);
-      
-      setPosts(validPosts);
-      setFollowingPosts([]);
+      // Fetch both types of posts in parallel
+      const [forYouResponse, followingResponse] = await Promise.all([
+        postsAPI.getAllPosts(),
+        postsAPI.getFollowedPosts()
+      ]);
+
+      setPosts(forYouResponse);
+      setFollowingPosts(followingResponse);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setError('Failed to load posts. Please try again.');

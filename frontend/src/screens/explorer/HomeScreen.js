@@ -65,26 +65,20 @@ export default function ExplorerHomeScreen({ navigation }) {
 
   const fetchPosts = async () => {
     try {
-      setLoading(true);
       setError(null);
+      setLoading(true);
       
-      const data = await postsAPI.getAllPosts();
-      const postsArray = Array.isArray(data) ? data : [];
-      const validPosts = postsArray.filter(post => post && post.userId);
-      
-      setPosts(validPosts);
-      setFollowingPosts([]);
+      // Fetch both types of posts in parallel
+      const [forYouResponse, followingResponse] = await Promise.all([
+        postsAPI.getAllPosts(),
+        postsAPI.getFollowedPosts()
+      ]);
+
+      setPosts(forYouResponse);
+      setFollowingPosts(followingResponse);
     } catch (error) {
       console.error('Error fetching posts:', error);
       setError('Failed to load posts. Please try again.');
-      Alert.alert(
-        'Error',
-        'Failed to load posts. Please check your internet connection and try again.',
-        [
-          { text: 'Retry', onPress: () => fetchPosts() },
-          { text: 'Cancel', style: 'cancel' }
-        ]
-      );
     } finally {
       setLoading(false);
     }

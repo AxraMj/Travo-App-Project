@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI } from '../../services/api';
+import { postsAPI, profileAPI } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
@@ -32,11 +32,26 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   const [localPost, setLocalPost] = useState(post);
   const likeScale = useRef(new Animated.Value(1)).current;
   const saveScale = useRef(new Animated.Value(1)).current;
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   // Update localPost when post prop changes
   useEffect(() => {
     setLocalPost(post);
   }, [post]);
+
+  // Check if current user is following the post creator
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      try {
+        const profileData = await profileAPI.getProfile(localPost.userId._id);
+        setIsFollowing(profileData.followers?.includes(user.id));
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      }
+    };
+    checkFollowStatus();
+  }, [localPost.userId._id]);
 
   const handleUserPress = (userId) => {
     if (userId === user.id) {
@@ -219,6 +234,29 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
     );
   };
 
+  const handleFollowPress = async () => {
+    if (followLoading) return;
+    
+    try {
+      setFollowLoading(true);
+      if (isFollowing) {
+        await profileAPI.unfollowUser(localPost.userId._id);
+        setIsFollowing(false);
+      } else {
+        await profileAPI.followUser(localPost.userId._id);
+        setIsFollowing(true);
+      }
+    } catch (error) {
+      console.error('Follow/unfollow error:', error);
+      Alert.alert(
+        'Error',
+        error.response?.data?.message || 'Failed to update follow status'
+      );
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
   const renderComment = ({ item }) => (
     <View style={styles.commentContainer}>
       <TouchableOpacity 
@@ -299,13 +337,38 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
             <Text style={styles.location}>{localPost.location.name}</Text>
           </View>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.moreButton}
-          onPress={() => setShowSettings(true)}
-        >
-          <Ionicons name="ellipsis-horizontal" size={24} color="rgba(255,255,255,0.5)" />
-        </TouchableOpacity>
+
+        <View style={styles.headerRight}>
+          {user.id !== localPost.userId._id && (
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing && styles.followingButton,
+                followLoading && styles.followButtonDisabled
+              ]}
+              onPress={handleFollowPress}
+              disabled={followLoading}
+            >
+              {followLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={[
+                  styles.followButtonText,
+                  isFollowing && styles.followingButtonText
+                ]}>
+                  {isFollowing ? 'Following' : 'Follow'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity 
+            style={styles.moreButton}
+            onPress={() => setShowSettings(true)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Post Image */}
@@ -707,5 +770,34 @@ const styles = StyleSheet.create({
   settingsText: {
     color: '#ffffff',
     fontSize: 16,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  followButton: {
+    backgroundColor: '#1DA1F2',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  followingButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#1DA1F2',
+  },
+  followButtonDisabled: {
+    opacity: 0.7,
+  },
+  followButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  followingButtonText: {
+    color: '#1DA1F2',
   },
 });
