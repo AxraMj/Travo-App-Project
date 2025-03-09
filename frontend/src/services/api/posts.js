@@ -55,15 +55,26 @@ export const postsAPI = {
 
   addComment: async (postId, commentData) => {
     try {
-      console.log('Sending comment request:', { postId, commentData });
+      console.log('API - Sending comment request:', {
+        url: `/posts/${postId}/comment`,
+        method: 'POST',
+        data: commentData,
+        headers: api.defaults.headers
+      });
       const response = await api.post(`/posts/${postId}/comment`, commentData);
-      console.log('Comment response:', response.data);
+      console.log('API - Comment response:', {
+        status: response.status,
+        data: response.data,
+        headers: response.headers
+      });
       return response.data;
     } catch (error) {
       console.error('API Error - addComment:', {
         status: error.response?.status,
         data: error.response?.data,
-        error: error.message
+        error: error.message,
+        config: error.config,
+        headers: error.response?.headers
       });
       throw error;
     }

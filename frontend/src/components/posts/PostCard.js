@@ -89,14 +89,17 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
 
     try {
       setIsSubmitting(true);
-      console.log('Adding comment to post:', localPost._id);
-      console.log('Comment text:', newComment.trim());
+      console.log('Adding comment to post:', {
+        postId: localPost._id,
+        text: newComment.trim(),
+        userId: user?.id
+      });
       
       const updatedPost = await postsAPI.addComment(localPost._id, { 
         text: newComment.trim() 
       });
       
-      console.log('Comment added successfully');
+      console.log('Comment added successfully, updated post:', updatedPost);
       setLocalPost(updatedPost);
       setNewComment('');
       if (onPostUpdate) onPostUpdate(updatedPost);
@@ -107,7 +110,12 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
       // Close comments modal after successful comment
       setShowComments(false);
     } catch (error) {
-      console.error('Comment error:', error.response?.data || error);
+      console.error('Comment error details:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers
+      });
       
       // Determine the error message
       let errorMessage = 'Failed to add comment. Please try again.';
@@ -126,14 +134,48 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
   };
 
   const handleDeleteComment = async (commentId) => {
-    try {
-      const updatedPost = await postsAPI.deleteComment(localPost._id, commentId);
-      setLocalPost(updatedPost);
-      if (onPostUpdate) onPostUpdate(updatedPost);
-    } catch (error) {
-      console.error('Delete comment error:', error);
-      Alert.alert('Error', 'Failed to delete comment');
-    }
+    Alert.alert(
+      'Delete Comment',
+      'Are you sure you want to delete this comment?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Optimistically update UI
+              const updatedComments = localPost.comments.filter(
+                comment => comment._id !== commentId
+              );
+              setLocalPost({
+                ...localPost,
+                comments: updatedComments
+              });
+
+              // Make API call
+              const updatedPost = await postsAPI.deleteComment(localPost._id, commentId);
+              
+              // Update with server response
+              setLocalPost(updatedPost);
+              if (onPostUpdate) onPostUpdate(updatedPost);
+            } catch (error) {
+              console.error('Delete comment error:', error);
+              // Revert optimistic update on error
+              setLocalPost(post);
+              Alert.alert(
+                'Error',
+                'Failed to delete comment. Please try again.'
+              );
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   // Handle post deletion

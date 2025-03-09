@@ -227,22 +227,36 @@ exports.addComment = async (req, res) => {
     const { text } = req.body;
     const userId = req.user.userId;
 
-    console.log('Adding comment:', { postId, userId, text });
+    console.log('Adding comment - Request details:', {
+      postId,
+      userId,
+      text,
+      user: req.user,
+      headers: req.headers
+    });
 
     // Validate inputs
     if (!text || !text.trim()) {
+      console.log('Comment validation failed: Empty text');
       return res.status(400).json({ message: 'Comment text is required' });
     }
 
     if (!postId || !mongoose.Types.ObjectId.isValid(postId)) {
+      console.log('Comment validation failed: Invalid post ID', postId);
       return res.status(400).json({ message: 'Invalid post ID' });
     }
 
     // Find the post
     const post = await Post.findById(postId);
     if (!post) {
+      console.log('Comment failed: Post not found', postId);
       return res.status(404).json({ message: 'Post not found' });
     }
+
+    console.log('Found post:', {
+      postId: post._id,
+      currentComments: post.comments.length
+    });
 
     // Create new comment
     const newComment = {
@@ -251,11 +265,19 @@ exports.addComment = async (req, res) => {
       createdAt: new Date()
     };
 
+    console.log('Created new comment object:', newComment);
+
     // Add comment to post
     post.comments.push(newComment);
-    await post.save();
+    console.log('Added comment to post array, new length:', post.comments.length);
 
-    console.log('Comment added successfully');
+    // Save the post
+    const savedPost = await post.save();
+    console.log('Saved post with new comment:', {
+      postId: savedPost._id,
+      newCommentsLength: savedPost.comments.length,
+      lastComment: savedPost.comments[savedPost.comments.length - 1]
+    });
 
     // Create notification for post owner
     if (post.userId.toString() !== userId) {
@@ -266,6 +288,7 @@ exports.addComment = async (req, res) => {
           'comment',
           { postId: post._id }
         );
+        console.log('Created notification for post owner');
       } catch (notifError) {
         console.error('Error creating notification:', notifError);
         // Don't fail the comment operation if notification fails
@@ -278,8 +301,14 @@ exports.addComment = async (req, res) => {
       .populate('comments.userId', 'username profileImage fullName');
 
     if (!updatedPost) {
+      console.log('Error: Could not fetch updated post after comment');
       return res.status(500).json({ message: 'Error fetching updated post' });
     }
+
+    console.log('Successfully fetched updated post:', {
+      postId: updatedPost._id,
+      commentsCount: updatedPost.comments.length
+    });
 
     const postObj = updatedPost.toObject();
     postObj.isLiked = updatedPost.likes.includes(userId);
@@ -287,7 +316,12 @@ exports.addComment = async (req, res) => {
 
     res.json(postObj);
   } catch (error) {
-    console.error('Add comment error:', error);
+    console.error('Add comment error - Full details:', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
     res.status(500).json({ 
       message: 'Failed to add comment',
       error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
@@ -305,19 +339,26 @@ exports.deleteComment = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const comment = post.comments.id(commentId);
-    if (!comment) {
+    // Find the comment index
+    const commentIndex = post.comments.findIndex(
+      comment => comment._id.toString() === commentId
+    );
+
+    if (commentIndex === -1) {
       return res.status(404).json({ message: 'Comment not found' });
     }
 
     // Check if user is comment owner or post owner
+    const comment = post.comments[commentIndex];
     if (comment.userId.toString() !== userId && post.userId.toString() !== userId) {
       return res.status(403).json({ message: 'Not authorized to delete this comment' });
     }
 
-    comment.remove();
+    // Remove the comment using pull
+    post.comments.pull({ _id: commentId });
     await post.save();
 
+    // Return updated post with populated fields
     const updatedPost = await Post.findById(postId)
       .populate('userId', 'username profileImage fullName')
       .populate('comments.userId', 'username profileImage fullName');
