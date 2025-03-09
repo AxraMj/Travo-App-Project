@@ -55,46 +55,77 @@ export default function ProfileSetupScreen({ navigation, route }) {
     }
   };
 
+  const validateUsername = (username) => {
+    if (!username.trim()) {
+      return 'Username is required';
+    }
+    if (username.length < 3) {
+      return 'Username must be at least 3 characters';
+    }
+    if (username.length > 30) {
+      return 'Username must be less than 30 characters';
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return 'Username can only contain letters, numbers and underscores';
+    }
+    return null;
+  };
+
   const handleComplete = async () => {
     try {
-      setIsLoading(true);
-
-      // Validate form
-      const errors = validateForm(
-        { ...profileData, accountType },
-        'profileSetup'
-      );
-
-      if (Object.keys(errors).length > 0) {
-        Alert.alert('Error', Object.values(errors)[0]);
+      if (!profileData.profileImage) {
+        setProfileData(prev => ({
+          ...prev,
+          errors: {
+            ...prev.errors,
+            profileImage: 'Please select a profile image'
+          }
+        }));
         return;
       }
 
-      // Prepare registration data
+      // Validate username for both account types
+      const usernameError = validateUsername(profileData.username);
+      if (usernameError) {
+        setProfileData(prev => ({
+          ...prev,
+          errors: {
+            ...prev.errors,
+            username: usernameError
+          }
+        }));
+        return;
+      }
+
+      setIsLoading(true);
+      setProfileData(prev => ({
+        ...prev,
+        errors: {
+          ...prev.errors,
+          username: null
+        }
+      }));
+
       const registrationData = {
         ...userData,
-        username: profileData.username,
+        username: profileData.username, // Use username for both account types
         profileImage: profileData.profileImage,
         accountType
       };
 
-      // Register user
       const response = await authAPI.register(registrationData);
 
-      // Login with new credentials
       await login({
         email: userData.email,
         password: userData.password
       });
 
-      // Navigate to appropriate home screen
       navigation.reset({
         index: 0,
         routes: [{ 
           name: accountType === 'creator' ? 'CreatorHome' : 'ExplorerHome' 
         }],
       });
-
     } catch (error) {
       console.error('Registration error:', error);
       Alert.alert(
@@ -195,13 +226,54 @@ export default function ProfileSetupScreen({ navigation, route }) {
               </View>
             )}
 
+            {accountType === 'explorer' && (
+              <View style={styles.inputSection}>
+                <Text style={styles.inputLabel}>Choose a Username</Text>
+                <View style={styles.inputWrapper}>
+                  <View style={[
+                    styles.usernameContainer,
+                    profileData.errors?.username && styles.inputError
+                  ]}>
+                    <Text style={styles.atSymbol}>@</Text>
+                    <TextInput
+                      style={styles.usernameInput}
+                      placeholder="username"
+                      placeholderTextColor="rgba(255,255,255,0.5)"
+                      value={profileData.username}
+                      onChangeText={(text) => {
+                        // Remove any @ symbols from input
+                        const cleanText = text.replace('@', '');
+                        setProfileData(prev => ({
+                          ...prev,
+                          username: cleanText,
+                          errors: {
+                            ...prev.errors,
+                            username: null
+                          }
+                        }));
+                      }}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      maxLength={30}
+                    />
+                  </View>
+                  {profileData.errors?.username && (
+                    <Text style={styles.errorText}>{profileData.errors.username}</Text>
+                  )}
+                </View>
+                <Text style={styles.inputHint}>
+                  This will be your unique identifier on Travo
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity 
               style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleComplete}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#232526" />
+                <ActivityIndicator color="#ffffff" />
               ) : (
                 <Text style={styles.buttonText}>Complete Setup</Text>
               )}
@@ -314,23 +386,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+    marginLeft: 4,
   },
   inputWrapper: {
     width: '100%',
   },
   usernameContainer: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    height: 50,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   atSymbol: {
-    color: '#ffffff',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 16,
     paddingLeft: 15,
-    opacity: 0.8,
+    fontWeight: '500',
   },
   usernameInput: {
     flex: 1,
@@ -338,17 +412,23 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
     color: '#ffffff',
     fontSize: 16,
+    height: '100%',
   },
   inputHint: {
     color: 'rgba(255,255,255,0.5)',
     fontSize: 12,
     marginTop: 8,
+    marginLeft: 4,
+  },
+  inputError: {
+    borderColor: '#ff4444',
+    borderWidth: 1,
   },
   errorText: {
     color: '#ff4444',
     fontSize: 12,
-    marginTop: 5,
-    textAlign: 'left',
+    marginTop: 6,
+    marginLeft: 4,
   },
   button: {
     backgroundColor: '#ffffff',

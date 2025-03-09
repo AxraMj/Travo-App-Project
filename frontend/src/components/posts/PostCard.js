@@ -101,14 +101,18 @@ export default function PostCard({ post, onPostUpdate }) {
   const renderComment = ({ item }) => (
     <View style={styles.commentItem}>
       <Image 
-        source={{ uri: item.userId.profileImage }} 
+        source={{ 
+          uri: item.userId?.profileImage || 'https://via.placeholder.com/150'
+        }} 
         style={styles.commentAvatar}
       />
       <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{item.userId.username}</Text>
+        <Text style={styles.commentUsername}>
+          {item.userId?.username || 'Unknown User'}
+        </Text>
         <Text style={styles.commentText}>{item.text}</Text>
       </View>
-      {(user?.id === item.userId._id || user?.id === localPost.userId._id) && (
+      {(user?.id === item.userId?._id || user?.id === localPost.userId?._id) && (
         <TouchableOpacity 
           style={styles.deleteComment}
           onPress={() => handleDeleteComment(item._id)}

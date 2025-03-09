@@ -30,8 +30,8 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check username for creators
-    if (accountType === 'creator' && username) {
+    // Check username uniqueness for all accounts
+    if (username) {
       const existingUsername = await User.findOne({ username });
       if (existingUsername) {
         return res.status(409).json({ 
@@ -50,7 +50,7 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       accountType,
-      username: accountType === 'creator' ? username : undefined,
+      username, // Store username for all account types
       profileImage: profileImage || 'https://via.placeholder.com/150'
     };
 
