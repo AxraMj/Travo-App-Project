@@ -41,12 +41,32 @@ export const postsAPI = {
     }
   },
 
-  addComment: async (postId, text) => {
+  savePost: async (postId) => {
     try {
-      const response = await api.post(`/posts/${postId}/comment`, { text });
+      const response = await api.post(`/posts/${postId}/save`);
+      return response.data;
+    } catch (error) {
+      console.error('API Error - savePost:', error);
+      throw error;
+    }
+  },
+
+  addComment: async (postId, commentData) => {
+    try {
+      const response = await api.post(`/posts/${postId}/comment`, commentData);
       return response.data;
     } catch (error) {
       console.error('API Error - addComment:', error);
+      throw error;
+    }
+  },
+
+  deleteComment: async (postId, commentId) => {
+    try {
+      const response = await api.delete(`/posts/${postId}/comment/${commentId}`);
+      return response.data;
+    } catch (error) {
+      console.error('API Error - deleteComment:', error);
       throw error;
     }
   },

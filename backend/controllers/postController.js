@@ -1,5 +1,6 @@
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Profile = require('../models/Profile');
 
 exports.createPost = async (req, res) => {
   try {
@@ -11,7 +12,6 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ message: 'Image is required' });
     }
 
-    // Create post with all required fields
     const postData = {
       userId: req.user.userId,
       image: req.body.image,
@@ -34,6 +34,12 @@ exports.createPost = async (req, res) => {
     const post = new Post(postData);
     await post.save();
 
+    // Update user's post count
+    await Profile.findOneAndUpdate(
+      { userId: req.user.userId },
+      { $inc: { 'stats.totalPosts': 1 } }
+    );
+
     const populatedPost = await Post.findById(post._id)
       .populate('userId', 'username profileImage fullName');
 
@@ -48,9 +54,20 @@ exports.getAllPosts = async (req, res) => {
   try {
     const posts = await Post.find()
       .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
 
-    res.json(posts);
+    // Add isLiked and isSaved fields for the current user
+    const enhancedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      if (req.user) {
+        postObj.isLiked = post.likes.includes(req.user.userId);
+        postObj.isSaved = post.savedBy.includes(req.user.userId);
+      }
+      return postObj;
+    });
+
+    res.json(enhancedPosts);
   } catch (error) {
     console.error('Get posts error:', error);
     res.status(500).json({ message: 'Failed to fetch posts' });
@@ -62,35 +79,23 @@ exports.getUserPosts = async (req, res) => {
     const { userId } = req.params;
     const posts = await Post.find({ userId })
       .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName')
       .sort({ createdAt: -1 });
 
-    res.json(posts);
+    // Add isLiked and isSaved fields for the current user
+    const enhancedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      if (req.user) {
+        postObj.isLiked = post.likes.includes(req.user.userId);
+        postObj.isSaved = post.savedBy.includes(req.user.userId);
+      }
+      return postObj;
+    });
+
+    res.json(enhancedPosts);
   } catch (error) {
     console.error('Get user posts error:', error);
     res.status(500).json({ message: 'Failed to fetch user posts' });
-  }
-};
-
-exports.deletePost = async (req, res) => {
-  try {
-    const { postId } = req.params;
-    
-    // Check if post exists
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
-
-    // Verify ownership
-    if (post.userId.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Not authorized to delete this post' });
-    }
-
-    await Post.findByIdAndDelete(postId);
-    res.json({ message: 'Post deleted successfully', deletedPostId: postId });
-  } catch (error) {
-    console.error('Delete post error:', error);
-    res.status(500).json({ message: 'Failed to delete post' });
   }
 };
 
@@ -104,18 +109,75 @@ exports.likePost = async (req, res) => {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const likeIndex = post.likes.indexOf(userId);
-    if (likeIndex === -1) {
-      post.likes.push(userId);
+    const hasLiked = post.likes.includes(userId);
+    if (hasLiked) {
+      // Unlike
+      post.likes.pull(userId);
+      // Update profile stats
+      await Profile.findOneAndUpdate(
+        { userId: post.userId },
+        { $inc: { 'stats.totalLikes': -1 } }
+      );
     } else {
-      post.likes.splice(likeIndex, 1);
+      // Like
+      post.likes.push(userId);
+      // Update profile stats
+      await Profile.findOneAndUpdate(
+        { userId: post.userId },
+        { $inc: { 'stats.totalLikes': 1 } }
+      );
     }
 
     await post.save();
-    res.json(post);
+
+    const updatedPost = await Post.findById(postId)
+      .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName');
+
+    const postObj = updatedPost.toObject();
+    postObj.isLiked = updatedPost.likes.includes(userId);
+    postObj.isSaved = updatedPost.savedBy.includes(userId);
+
+    res.json(postObj);
   } catch (error) {
     console.error('Like post error:', error);
     res.status(500).json({ message: 'Failed to like post' });
+  }
+};
+
+exports.savePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.userId;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const hasSaved = post.savedBy.includes(userId);
+    if (hasSaved) {
+      // Unsave
+      post.savedBy.pull(userId);
+    } else {
+      // Save
+      post.savedBy.push(userId);
+    }
+
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName');
+
+    const postObj = updatedPost.toObject();
+    postObj.isLiked = updatedPost.likes.includes(userId);
+    postObj.isSaved = updatedPost.savedBy.includes(userId);
+
+    res.json(postObj);
+  } catch (error) {
+    console.error('Save post error:', error);
+    res.status(500).json({ message: 'Failed to save post' });
   }
 };
 
@@ -142,13 +204,83 @@ exports.addComment = async (req, res) => {
 
     await post.save();
 
-    const populatedPost = await Post.findById(postId)
+    const updatedPost = await Post.findById(postId)
       .populate('userId', 'username profileImage fullName')
       .populate('comments.userId', 'username profileImage fullName');
 
-    res.json(populatedPost);
+    const postObj = updatedPost.toObject();
+    postObj.isLiked = updatedPost.likes.includes(userId);
+    postObj.isSaved = updatedPost.savedBy.includes(userId);
+
+    res.json(postObj);
   } catch (error) {
     console.error('Add comment error:', error);
     res.status(500).json({ message: 'Failed to add comment' });
+  }
+};
+
+exports.deleteComment = async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    const userId = req.user.userId;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    // Check if user is comment owner or post owner
+    if (comment.userId.toString() !== userId && post.userId.toString() !== userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this comment' });
+    }
+
+    comment.remove();
+    await post.save();
+
+    const updatedPost = await Post.findById(postId)
+      .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName');
+
+    const postObj = updatedPost.toObject();
+    postObj.isLiked = updatedPost.likes.includes(userId);
+    postObj.isSaved = updatedPost.savedBy.includes(userId);
+
+    res.json(postObj);
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({ message: 'Failed to delete comment' });
+  }
+};
+
+exports.deletePost = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.userId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this post' });
+    }
+
+    await Post.findByIdAndDelete(postId);
+
+    // Update user's post count
+    await Profile.findOneAndUpdate(
+      { userId: req.user.userId },
+      { $inc: { 'stats.totalPosts': -1 } }
+    );
+
+    res.json({ message: 'Post deleted successfully', deletedPostId: postId });
+  } catch (error) {
+    console.error('Delete post error:', error);
+    res.status(500).json({ message: 'Failed to delete post' });
   }
 }; 

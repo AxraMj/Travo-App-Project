@@ -11,13 +11,19 @@ router.get('/', postController.getAllPosts);
 // Get posts by user ID
 router.get('/user/:userId', postController.getUserPosts);
 
-// Delete a post
-router.delete('/:postId', auth, postController.deletePost);
-
 // Like/unlike a post
 router.post('/:postId/like', auth, postController.likePost);
 
+// Save/unsave a post
+router.post('/:postId/save', auth, postController.savePost);
+
 // Add a comment to a post
 router.post('/:postId/comment', auth, postController.addComment);
+
+// Delete a comment from a post
+router.delete('/:postId/comment/:commentId', auth, postController.deleteComment);
+
+// Delete a post
+router.delete('/:postId', auth, postController.deletePost);
 
 module.exports = router; 

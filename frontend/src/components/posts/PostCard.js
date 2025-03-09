@@ -7,44 +7,38 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
+  Modal,
+  TextInput,
+  FlatList,
+  ActivityIndicator,
+  Alert,
   ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import { postsAPI } from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-export default function PostCard({ post }) {
-  const [isLiked, setIsLiked] = useState(false);
+export default function PostCard({ post, onPostUpdate }) {
+  const { user } = useAuth();
+  const [showComments, setShowComments] = useState(false);
   const [showTips, setShowTips] = useState(false);
-  const likeScale = useState(new Animated.Value(1))[0];
-  const tipsHeight = useRef(new Animated.Value(0)).current;
+  const [newComment, setNewComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localPost, setLocalPost] = useState(post);
+  const likeScale = useRef(new Animated.Value(1)).current;
+  const saveScale = useRef(new Animated.Value(1)).current;
 
-  // Add null check and default values
-  const {
-    userId = {},
-    image,
-    description = '',
-    location = { name: 'Unknown Location' },
-    weather = { temp: 0, description: 'Unknown' },
-    likes = [],
-    comments = [],
-    travelTips = []
-  } = post || {};
-
-  // Safely access user data with username as fallback
-  const username = userId?.username || 'username';
-  const fullName = userId?.fullName || username;
-  const profileImage = userId?.profileImage || 'https://via.placeholder.com/40';
-
-  const handleLike = () => {
-    setIsLiked(!isLiked);
+  // Handle like animation
+  const animateScale = (scale) => {
     Animated.sequence([
-      Animated.spring(likeScale, {
+      Animated.spring(scale, {
         toValue: 1.2,
         duration: 150,
         useNativeDriver: true,
       }),
-      Animated.spring(likeScale, {
+      Animated.spring(scale, {
         toValue: 1,
         duration: 150,
         useNativeDriver: true,
@@ -52,25 +46,87 @@ export default function PostCard({ post }) {
     ]).start();
   };
 
-  const handleShowTips = () => {
-    setShowTips(!showTips);
-    Animated.timing(tipsHeight, {
-      toValue: !showTips ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+  const handleLike = async () => {
+    try {
+      animateScale(likeScale);
+      const updatedPost = await postsAPI.likePost(localPost._id);
+      setLocalPost(updatedPost);
+      if (onPostUpdate) onPostUpdate(updatedPost);
+    } catch (error) {
+      console.error('Like error:', error);
+      Alert.alert('Error', 'Failed to like post');
+    }
   };
 
-  if (!post) {
-    return null;
-  }
+  const handleSave = async () => {
+    try {
+      animateScale(saveScale);
+      const updatedPost = await postsAPI.savePost(localPost._id);
+      setLocalPost(updatedPost);
+      if (onPostUpdate) onPostUpdate(updatedPost);
+    } catch (error) {
+      console.error('Save error:', error);
+      Alert.alert('Error', 'Failed to save post');
+    }
+  };
+
+  const handleComment = async () => {
+    if (!newComment.trim()) return;
+
+    try {
+      setIsSubmitting(true);
+      const updatedPost = await postsAPI.addComment(localPost._id, { text: newComment });
+      setLocalPost(updatedPost);
+      setNewComment('');
+      if (onPostUpdate) onPostUpdate(updatedPost);
+    } catch (error) {
+      console.error('Comment error:', error);
+      Alert.alert('Error', 'Failed to add comment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      const updatedPost = await postsAPI.deleteComment(localPost._id, commentId);
+      setLocalPost(updatedPost);
+      if (onPostUpdate) onPostUpdate(updatedPost);
+    } catch (error) {
+      console.error('Delete comment error:', error);
+      Alert.alert('Error', 'Failed to delete comment');
+    }
+  };
+
+  const renderComment = ({ item }) => (
+    <View style={styles.commentItem}>
+      <Image 
+        source={{ uri: item.userId.profileImage }} 
+        style={styles.commentAvatar}
+      />
+      <View style={styles.commentContent}>
+        <Text style={styles.commentUsername}>{item.userId.username}</Text>
+        <Text style={styles.commentText}>{item.text}</Text>
+      </View>
+      {(user?.id === item.userId._id || user?.id === localPost.userId._id) && (
+        <TouchableOpacity 
+          style={styles.deleteComment}
+          onPress={() => handleDeleteComment(item._id)}
+        >
+          <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  if (!localPost) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.contentContainer}>
         {/* Profile Image */}
         <Image 
-          source={{ uri: profileImage }} 
+          source={{ uri: localPost.userId.profileImage }} 
           style={styles.profileImage} 
         />
 
@@ -79,8 +135,8 @@ export default function PostCard({ post }) {
           {/* User Info Header */}
           <View style={styles.userInfo}>
             <View style={styles.nameContainer}>
-              <Text style={styles.fullName}>{fullName}</Text>
-              <Text style={styles.username}>@{username}</Text>
+              <Text style={styles.fullName}>{localPost.userId.fullName}</Text>
+              <Text style={styles.username}>@{localPost.userId.username}</Text>
             </View>
             <TouchableOpacity style={styles.moreButton}>
               <Ionicons name="ellipsis-horizontal" size={18} color="rgba(255,255,255,0.5)" />
@@ -88,14 +144,14 @@ export default function PostCard({ post }) {
           </View>
 
           {/* Post Text */}
-          {description && (
-            <Text style={styles.description}>{description}</Text>
+          {localPost.description && (
+            <Text style={styles.description}>{localPost.description}</Text>
           )}
 
           {/* Post Image */}
-          {image && (
+          {localPost.image && (
             <Image 
-              source={{ uri: image }} 
+              source={{ uri: localPost.image }} 
               style={styles.postImage}
               resizeMode="cover"
             />
@@ -105,19 +161,26 @@ export default function PostCard({ post }) {
           <View style={styles.locationWeather}>
             <View style={styles.locationContainer}>
               <Ionicons name="location-sharp" size={14} color="#FF6B6B" />
-              <Text style={styles.location}>{location.name}</Text>
+              <Text style={styles.location}>{localPost.location.name}</Text>
             </View>
             <View style={styles.weatherContainer}>
               <Ionicons name="partly-sunny" size={14} color="#FFD93D" />
-              <Text style={styles.temperature}>{weather.temp}°C</Text>
+              <Text style={styles.temperature}>{localPost.weather.temp}°C</Text>
             </View>
           </View>
 
           {/* Action Buttons */}
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="chatbubble-outline" size={20} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.actionText}>{comments.length}</Text>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => setShowComments(true)}
+            >
+              <Ionicons 
+                name="chatbubble-outline" 
+                size={20} 
+                color="rgba(255,255,255,0.7)" 
+              />
+              <Text style={styles.actionText}>{localPost.comments.length}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -126,67 +189,119 @@ export default function PostCard({ post }) {
             >
               <Animated.View style={{ transform: [{ scale: likeScale }] }}>
                 <Ionicons 
-                  name={isLiked ? "heart" : "heart-outline"} 
+                  name={localPost.isLiked ? "heart" : "heart-outline"} 
                   size={20} 
-                  color={isLiked ? "#FF6B6B" : "rgba(255,255,255,0.7)"} 
+                  color={localPost.isLiked ? "#FF6B6B" : "rgba(255,255,255,0.7)"} 
                 />
               </Animated.View>
-              <Text style={styles.actionText}>{likes.length}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="bookmark-outline" size={20} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.actionText}>{localPost.likes.length}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={[styles.actionButton, showTips && styles.activeActionButton]}
-              onPress={handleShowTips}
+              style={styles.actionButton}
+              onPress={() => setShowTips(!showTips)}
             >
               <Ionicons 
-                name={showTips ? "bulb" : "bulb-outline"}
+                name="bulb-outline" 
                 size={20} 
-                color={travelTips.length > 0 ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
+                color={showTips ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
               />
-              <Text style={[
-                styles.actionText,
-                showTips && { color: "#FFD93D" }
-              ]}>{travelTips.length}</Text>
+              <Text style={styles.actionText}>{localPost.travelTips.length}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={handleSave}
+            >
+              <Animated.View style={{ transform: [{ scale: saveScale }] }}>
+                <Ionicons 
+                  name={localPost.isSaved ? "bookmark" : "bookmark-outline"} 
+                  size={20} 
+                  color={localPost.isSaved ? "#FFD93D" : "rgba(255,255,255,0.7)"} 
+                />
+              </Animated.View>
             </TouchableOpacity>
           </View>
 
           {/* Travel Tips Section */}
-          <Animated.View 
-            style={[
-              styles.tipsSection,
-              {
-                maxHeight: tipsHeight.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 500]
-                }),
-                opacity: tipsHeight
-              }
-            ]}
-          >
-            <View style={styles.tipsHeader}>
-              <Ionicons name="bulb" size={16} color="#FFD93D" />
-              <Text style={styles.tipsTitle}>Travel Tips</Text>
-            </View>
-            
-            {travelTips.length > 0 ? (
-              travelTips.map((tip, index) => (
-                <View key={index} style={styles.tipItem}>
-                  <Ionicons name="chevron-forward" size={16} color="#FFD93D" />
-                  <Text style={styles.tipText}>{tip}</Text>
-                </View>
-              ))
-            ) : (
-              <View style={styles.noTipsContainer}>
-                <Text style={styles.noTipsText}>No travel tips available</Text>
+          {showTips && (
+            <View style={styles.tipsSection}>
+              <View style={styles.tipsSectionHeader}>
+                <Ionicons name="bulb" size={18} color="#FFD93D" />
+                <Text style={styles.tipsSectionTitle}>Travel Tips</Text>
               </View>
-            )}
-          </Animated.View>
+              {localPost.travelTips.length === 0 ? (
+                <Text style={styles.noTips}>No travel tips available</Text>
+              ) : (
+                localPost.travelTips.map((tip, index) => (
+                  <View key={index} style={styles.tipItem}>
+                    <Text style={styles.tipBullet}>•</Text>
+                    <Text style={styles.tipText}>{tip}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
         </View>
       </View>
+
+      {/* Comments Modal */}
+      <Modal
+        visible={showComments}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowComments(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Comments</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowComments(false)}
+              >
+                <Ionicons name="close" size={24} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={localPost.comments}
+              renderItem={renderComment}
+              keyExtractor={item => item._id}
+              contentContainerStyle={styles.commentsList}
+              ListEmptyComponent={
+                <Text style={styles.noComments}>No comments yet</Text>
+              }
+            />
+
+            <View style={styles.commentInput}>
+              <TextInput
+                style={styles.input}
+                placeholder="Add a comment..."
+                placeholderTextColor="rgba(255,255,255,0.5)"
+                value={newComment}
+                onChangeText={setNewComment}
+                multiline
+              />
+              {isSubmitting ? (
+                <ActivityIndicator color="#ffffff" style={styles.submitButton} />
+              ) : (
+                <TouchableOpacity 
+                  style={styles.submitButton}
+                  onPress={handleComment}
+                  disabled={!newComment.trim()}
+                >
+                  <Ionicons 
+                    name="send" 
+                    size={24} 
+                    color={newComment.trim() ? "#FF6B6B" : "rgba(255,255,255,0.3)"} 
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -278,7 +393,6 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 24,
-    marginBottom: 8,
   },
   actionButton: {
     flexDirection: 'row',
@@ -286,49 +400,131 @@ const styles = StyleSheet.create({
     gap: 6,
     padding: 6,
   },
-  activeActionButton: {
-    backgroundColor: 'rgba(255, 217, 61, 0.1)',
-    borderRadius: 20,
-  },
   actionText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 13,
   },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#232526',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '80%',
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  modalTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  commentsList: {
+    flexGrow: 1,
+    paddingVertical: 16,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  commentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentUsername: {
+    color: '#ffffff',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  commentText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  deleteComment: {
+    padding: 4,
+  },
+  noComments: {
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  commentInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    paddingTop: 16,
+    gap: 12,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    color: '#ffffff',
+    maxHeight: 100,
+  },
+  submitButton: {
+    padding: 8,
+  },
   tipsSection: {
+    marginTop: 12,
     backgroundColor: 'rgba(0,0,0,0.2)',
     borderRadius: 8,
     padding: 12,
-    overflow: 'hidden',
   },
-  tipsHeader: {
+  tipsSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 12,
   },
-  tipsTitle: {
+  tipsSectionTitle: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   tipItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  tipBullet: {
+    color: '#FFD93D',
+    fontSize: 16,
+    marginRight: 8,
+    marginTop: -2,
   },
   tipText: {
-    color: '#ffffff',
-    fontSize: 13,
-    lineHeight: 18,
     flex: 1,
+    color: '#ffffff',
+    fontSize: 14,
+    lineHeight: 20,
   },
-  noTipsContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  noTipsText: {
+  noTips: {
     color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
+    textAlign: 'center',
+    fontSize: 14,
   },
 });
