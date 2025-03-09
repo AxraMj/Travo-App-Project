@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 
 export default function HomeHeader({ navigation, isCreator = false }) {
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
 
   return (
     <View style={styles.container}>
@@ -23,14 +25,32 @@ export default function HomeHeader({ navigation, isCreator = false }) {
       </TouchableOpacity>
 
       <View style={styles.rightButtons}>
-        {isCreator ? (
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => navigation.navigate('CreatePost')}
-          >
-            <Ionicons name="add-circle-outline" size={28} color="#ffffff" />
-          </TouchableOpacity>
-        ) : (
+        {isCreator && (
+          <>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              <View>
+                <Ionicons name="notifications-outline" size={28} color="#ffffff" />
+                {unreadCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => navigation.navigate('CreatePost')}
+            >
+              <Ionicons name="add-circle-outline" size={28} color="#ffffff" />
+            </TouchableOpacity>
+          </>
+        )}
+        {!isCreator && (
           <TouchableOpacity 
             style={styles.iconButton}
             onPress={() => navigation.navigate('Following')}
@@ -66,8 +86,28 @@ const styles = StyleSheet.create({
   rightButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 16,
   },
   iconButton: {
     padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#232526',
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 }); 

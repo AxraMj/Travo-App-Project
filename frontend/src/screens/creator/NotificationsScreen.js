@@ -8,41 +8,27 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
-  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
-import { useAuth } from '../../context/AuthContext';
-import { API_URL } from '../../config/config';
+import { useNotifications } from '../../context/NotificationContext';
 import { notificationsAPI } from '../../services/api/notifications';
 
 export default function NotificationsScreen({ navigation }) {
-  const { user, token } = useAuth();
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const { markAllAsRead, markAsRead } = useNotifications();
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      console.log('Fetching notifications...');
       const response = await notificationsAPI.getNotifications();
-      console.log('Notifications received:', response);
-      
-      // Transform the grouped notifications into sections
-      const sections = Object.entries(response.groups).map(([title, data]) => ({
-        title,
-        data
-      }));
-
-      setNotifications(sections);
-      setUnreadCount(response.unreadCount);
+      setNotifications(formatNotifications(response.groups));
+      // Mark all notifications as read when screen is opened
+      await markAllAsRead();
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      Alert.alert('Error', 'Failed to fetch notifications. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -50,56 +36,14 @@ export default function NotificationsScreen({ navigation }) {
 
   useEffect(() => {
     fetchNotifications();
-
-    // Set up WebSocket connection for real-time updates
-    console.log('Connecting to WebSocket...');
-    const wsUrl = `ws://${API_URL.replace(/^https?:\/\//, '')}/ws?token=${token}`;
-    console.log('WebSocket URL:', wsUrl);
-    
-    const ws = new WebSocket(wsUrl);
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWsConnected(true);
-    };
-    
-    ws.onmessage = (event) => {
-      console.log('WebSocket message received:', event.data);
-      try {
-        const { event: eventType, data } = JSON.parse(event.data);
-        console.log('Parsed message:', { eventType, data });
-        if (eventType === 'notification') {
-          setNotifications(prev => {
-            const todaySection = prev.find(section => section.title === 'Today');
-            if (todaySection) {
-              todaySection.data.unshift(data);
-            } else {
-              prev.unshift({ title: 'Today', data: [data] });
-            }
-            return [...prev];
-          });
-          setUnreadCount(count => count + 1);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsConnected(false);
-    };
-    
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setWsConnected(false);
-    };
-
-    return () => {
-      console.log('Closing WebSocket connection');
-      ws.close();
-    };
   }, []);
+
+  const formatNotifications = (groups) => {
+    return Object.entries(groups).map(([title, data]) => ({
+      title,
+      data
+    }));
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -107,46 +51,29 @@ export default function NotificationsScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const handleNotificationPress = async (item) => {
+  const handleNotificationPress = async (notification) => {
     try {
-      if (!item.read) {
-        // Mark as read
-        await notificationsAPI.markAsRead(item._id);
-        setUnreadCount(count => Math.max(0, count - 1));
-
-        // Update local state
-        setNotifications(prev => 
-          prev.map(section => ({
-            ...section,
-            data: section.data.map(n => 
-              n._id === item._id ? { ...n, read: true } : n
-            )
-          }))
-        );
+      // Mark the notification as read if it isn't already
+      if (!notification.read) {
+        await markAsRead(notification._id);
       }
 
       // Navigate based on notification type
-      switch (item.type) {
+      switch (notification.type) {
         case 'like':
         case 'comment':
-          if (item.postId) {
-            navigation.navigate('CreatorHome', {
-              postId: item.postId._id
-            });
+          // Navigate to the post
+          if (notification.postId) {
+            navigation.navigate('Post', { postId: notification.postId });
           }
           break;
         case 'follow':
-          navigation.navigate('Profile', {
-            userId: item.triggeredBy._id
-          });
-          break;
-        case 'mention':
-          if (item.postId) {
-            navigation.navigate('CreatorHome', {
-              postId: item.postId._id,
-              commentId: item.commentId
-            });
+          // Navigate to the user's profile
+          if (notification.triggeredBy) {
+            navigation.navigate('UserProfile', { userId: notification.triggeredBy._id });
           }
+          break;
+        default:
           break;
       }
     } catch (error) {
@@ -158,44 +85,44 @@ export default function NotificationsScreen({ navigation }) {
     const getNotificationIcon = () => {
       switch (item.type) {
         case 'like':
-          return <Ionicons name="heart" size={20} color="#FF6B6B" />;
+          return 'heart';
         case 'comment':
-          return <Ionicons name="chatbubble" size={20} color="#4CD964" />;
+          return 'chatbubble';
         case 'follow':
-          return <Ionicons name="person-add" size={20} color="#5856D6" />;
-        case 'mention':
-          return <Ionicons name="at" size={20} color="#FF9500" />;
+          return 'person-add';
         default:
-          return <Ionicons name="notifications" size={20} color="#ffffff" />;
+          return 'notifications';
       }
     };
 
     return (
-      <TouchableOpacity 
-        style={[styles.notificationItem, !item.read && styles.unreadNotification]}
+      <TouchableOpacity
+        style={styles.notificationItem}
         onPress={() => handleNotificationPress(item)}
       >
-        <Image 
-          source={{ 
-            uri: item.triggeredBy?.profileImage || 'https://via.placeholder.com/40'
-          }} 
-          style={styles.userAvatar}
-        />
         <View style={styles.notificationContent}>
-          <View style={styles.notificationHeader}>
-            <Text style={styles.username}>{item.triggeredBy?.username || 'Unknown User'}</Text>
-            {getNotificationIcon()}
+          {item.triggeredBy?.profileImage ? (
+            <Image
+              source={{ uri: item.triggeredBy.profileImage }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={[styles.profileImage, styles.defaultProfileImage]}>
+              <Ionicons name="person" size={20} color="#666" />
+            </View>
+          )}
+          <View style={styles.notificationText}>
+            <Text style={styles.username}>
+              {item.triggeredBy?.username || 'Someone'}
+            </Text>
+            <Text style={styles.message}>{item.text}</Text>
           </View>
-          <Text style={styles.notificationText}>
-            {item.text}
-          </Text>
-        </View>
-        {item.postId?.image && (
-          <Image 
-            source={{ uri: item.postId.image }} 
-            style={styles.postThumbnail}
+          <Ionicons
+            name={getNotificationIcon()}
+            size={24}
+            color={item.read ? '#666' : '#FF3B30'}
           />
-        )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -208,78 +135,50 @@ export default function NotificationsScreen({ navigation }) {
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="notifications-off-outline" size={48} color="rgba(255,255,255,0.5)" />
+      <Ionicons name="notifications-outline" size={48} color="#666" />
       <Text style={styles.emptyText}>No notifications yet</Text>
-      <Text style={styles.emptySubText}>
-        When someone interacts with your posts, you'll see it here
-      </Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#232526', '#414345', '#232526']}
+        colors={['#232526', '#414345']}
         style={styles.container}
       >
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#ffffff" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Notifications
-            {unreadCount > 0 && (
-              <Text style={styles.unreadCount}> ({unreadCount})</Text>
-            )}
-          </Text>
-          {unreadCount > 0 && (
-            <TouchableOpacity 
-              style={styles.readAllButton}
-              onPress={async () => {
-                try {
-                  await notificationsAPI.markAllAsRead();
-                  setNotifications(prev => 
-                    prev.map(section => ({
-                      ...section,
-                      data: section.data.map(n => ({ ...n, read: true }))
-                    }))
-                  );
-                  setUnreadCount(0);
-                } catch (error) {
-                  console.error('Error marking all as read:', error);
-                }
-              }}
-            >
-              <Text style={styles.readAllText}>Mark all as read</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={styles.headerRight} />
         </View>
 
-        <SectionList
-          sections={notifications}
-          renderItem={renderNotification}
-          renderSectionHeader={renderSectionHeader}
-          keyExtractor={item => item._id}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#ffffff"
-            />
-          }
-          ListEmptyComponent={loading ? (
-            <ActivityIndicator color="#ffffff" size="large" style={styles.loader} />
-          ) : (
-            renderEmptyComponent()
-          )}
-          contentContainerStyle={styles.listContainer}
-          stickySectionHeadersEnabled={true}
-        />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        ) : (
+          <SectionList
+            sections={notifications}
+            keyExtractor={(item) => item._id}
+            renderItem={renderNotification}
+            renderSectionHeader={renderSectionHeader}
+            ListEmptyComponent={renderEmptyComponent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#fff"
+              />
+            }
+            contentContainerStyle={styles.listContent}
+          />
+        )}
       </LinearGradient>
-      <StatusBar style="light" />
     </View>
   );
 }
@@ -292,105 +191,79 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  backButton: {
-    padding: 8,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#fff',
   },
-  unreadCount: {
-    color: '#4CD964',
-  },
-  readAllButton: {
+  backButton: {
     padding: 8,
   },
-  readAllText: {
-    color: '#4CD964',
-    fontSize: 14,
+  headerRight: {
+    width: 40,
   },
-  sectionHeader: {
-    backgroundColor: '#232526',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  listContainer: {
+  listContent: {
     flexGrow: 1,
   },
+  sectionHeader: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    padding: 8,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontWeight: '600',
+  },
   notificationItem: {
-    flexDirection: 'row',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  notificationContent: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  unreadNotification: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  userAvatar: {
+  profileImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
     marginRight: 12,
   },
-  notificationContent: {
+  defaultProfileImage: {
+    backgroundColor: '#ddd',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationText: {
     flex: 1,
     marginRight: 12,
   },
-  notificationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  username: {
+    color: '#fff',
+    fontWeight: '600',
     marginBottom: 4,
   },
-  username: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  notificationText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-  },
-  postThumbnail: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
+  message: {
+    color: 'rgba(255,255,255,0.8)',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    marginTop: 40,
+    paddingVertical: 40,
   },
   emptyText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptySubText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  loader: {
-    marginTop: 40,
+    color: '#666',
+    marginTop: 12,
+    fontSize: 16,
   },
 }); 
