@@ -223,6 +223,12 @@ export default function CreatorHomeScreen({ navigation }) {
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.navItem}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons name="notifications-outline" size={24} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.navItem}
             onPress={() => navigation.navigate('Saved')}
           >
             <Ionicons name="bookmark-outline" size={24} color="rgba(255,255,255,0.7)" />

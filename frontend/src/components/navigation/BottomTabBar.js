@@ -40,12 +40,23 @@ export default function BottomTabBar({ state, navigation }) {
 
       <TouchableOpacity 
         style={styles.tabItem} 
+        onPress={() => navigation.navigate('Notifications')}
+      >
+        <Ionicons 
+          name={state.index === 3 ? "notifications" : "notifications-outline"} 
+          size={24} 
+          color={state.index === 3 ? "#ffffff" : "rgba(255,255,255,0.7)"} 
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.tabItem} 
         onPress={() => navigation.navigate('Saved')}
       >
         <Ionicons 
-          name={state.index === 3 ? "bookmark" : "bookmark-outline"} 
+          name={state.index === 4 ? "bookmark" : "bookmark-outline"} 
           size={24} 
-          color={state.index === 3 ? "#ffffff" : "rgba(255,255,255,0.7)"} 
+          color={state.index === 4 ? "#ffffff" : "rgba(255,255,255,0.7)"} 
         />
       </TouchableOpacity>
     </View>
