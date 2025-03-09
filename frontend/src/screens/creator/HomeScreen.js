@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import PostCard from '../../components/posts/PostCard';
+import HomeHeader from '../../components/navigation/HomeHeader';
 import { useAuth } from '../../context/AuthContext';
 import { postsAPI } from '../../services/api/';
 
@@ -129,43 +130,8 @@ export default function CreatorHomeScreen({ navigation }) {
         colors={['#232526', '#414345', '#232526']}
         style={styles.container}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('Profile')}
-            activeOpacity={0.7}
-          >
-            {user?.profileImage ? (
-              <Image 
-                source={{ uri: user.profileImage }} 
-                style={styles.profileImage} 
-              />
-            ) : (
-              <Ionicons name="person-circle" size={32} color="#ffffff" />
-            )}
-          </TouchableOpacity>
-
-          <Image 
-            source={require('../../../assets/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Ionicons name="settings-outline" size={24} color="#ffffff" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={() => navigation.navigate('CreatePost')}
-            >
-              <Ionicons name="add-circle-outline" size={28} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Use HomeHeader component */}
+        <HomeHeader navigation={navigation} isCreator={true} />
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
@@ -223,12 +189,6 @@ export default function CreatorHomeScreen({ navigation }) {
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.navItem}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.navItem}
             onPress={() => navigation.navigate('Saved')}
           >
             <Ionicons name="bookmark-outline" size={24} color="rgba(255,255,255,0.7)" />
@@ -244,70 +204,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, 
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 10,
-  },
-  logo: {
-    width: 100,
-    height: 70,
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconButton: {
-    padding: 8,
-  },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomWidth: 2,
     borderBottomColor: '#ffffff',
   },
   tabText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 16,
+    fontWeight: '600',
   },
   activeTabText: {
     color: '#ffffff',
-    fontWeight: 'bold',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    backgroundColor: '#232526',
-    paddingBottom: 20,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   listContainer: {
     flexGrow: 1,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#232526',
+  },
+  navItem: {
+    padding: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -315,40 +248,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
   },
-  errorContainer: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    color: '#FF6B6B',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#FF6B6B',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
-  },
-  retryButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   emptyText: {
     color: '#ffffff',
     fontSize: 18,
-    fontWeight: 'bold',
     marginTop: 16,
+    marginBottom: 8,
   },
   emptySubText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   createButton: {
     backgroundColor: '#414345',
@@ -358,7 +268,7 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   exploreButton: {
@@ -366,11 +276,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,
-    marginTop: 12,
   },
   exploreButtonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  errorText: {
+    color: '#ffffff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginVertical: 16,
+  },
+  retryButton: {
+    backgroundColor: '#414345',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
 }); 

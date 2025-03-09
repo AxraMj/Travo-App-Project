@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -6,7 +6,20 @@ import { useNotifications } from '../../context/NotificationContext';
 
 export default function HomeHeader({ navigation, isCreator = false }) {
   const { user } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, fetchUnreadCount } = useNotifications();
+
+  // Add debug logging
+  useEffect(() => {
+    console.log('HomeHeader - Current unread count:', unreadCount);
+  }, [unreadCount]);
+
+  // Fetch unread count on mount
+  useEffect(() => {
+    if (isCreator) {
+      console.log('HomeHeader - Fetching initial unread count');
+      fetchUnreadCount();
+    }
+  }, [isCreator]);
 
   return (
     <View style={styles.container}>
@@ -93,21 +106,29 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -6,
+    right: -6,
     backgroundColor: '#FF3B30',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 12,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#232526',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
   },
   badgeText: {
     color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
 }); 
