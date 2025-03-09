@@ -11,6 +11,7 @@ router.use(auth);
 // Get posts
 router.get('/', postController.getAllPosts);
 router.get('/following', postController.getFollowedPosts);
+router.get('/saved', postController.getSavedPosts);
 
 // Create a new post
 router.post('/', postController.createPost);

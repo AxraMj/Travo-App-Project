@@ -442,4 +442,30 @@ exports.deletePost = async (req, res) => {
     console.error('Delete post error:', error);
     res.status(500).json({ message: 'Failed to delete post' });
   }
+};
+
+exports.getSavedPosts = async (req, res) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const posts = await Post.find({ savedBy: req.user.userId })
+      .populate('userId', 'username profileImage fullName')
+      .populate('comments.userId', 'username profileImage fullName')
+      .sort({ createdAt: -1 });
+
+    // Add isLiked and isSaved fields
+    const enhancedPosts = posts.map(post => {
+      const postObj = post.toObject();
+      postObj.isLiked = post.likes.includes(req.user.userId);
+      postObj.isSaved = true; // Since these are saved posts
+      return postObj;
+    });
+
+    res.json(enhancedPosts);
+  } catch (error) {
+    console.error('Get saved posts error:', error);
+    res.status(500).json({ message: 'Failed to fetch saved posts' });
+  }
 }; 
