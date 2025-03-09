@@ -74,14 +74,138 @@ const creators = [
     username: 'pathfinder_alex',
     password: 'Creator123!',
     profileImage: 'https://picsum.photos/id/246/200'
+  },
+  {
+    fullName: 'Yuki Tanaka',
+    email: 'yuki.tanaka@example.com',
+    username: 'wanderlust_yuki',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/267/200'
+  },
+  {
+    fullName: 'Liam O\'Connor',
+    email: 'liam.oconnor@example.com',
+    username: 'adventure_liam',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/268/200'
+  },
+  {
+    fullName: 'Amara Okafor',
+    email: 'amara.okafor@example.com',
+    username: 'explorer_amara',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/269/200'
+  },
+  {
+    fullName: 'Gabriel Santos',
+    email: 'gabriel.santos@example.com',
+    username: 'traveler_gabriel',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/270/200'
+  },
+  {
+    fullName: 'Mia Zhang',
+    email: 'mia.zhang@example.com',
+    username: 'globetrotter_mia',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/271/200'
+  },
+  {
+    fullName: 'Ravi Kumar',
+    email: 'ravi.kumar@example.com',
+    username: 'nomad_ravi',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/272/200'
+  },
+  {
+    fullName: 'Sophie Laurent',
+    email: 'sophie.laurent@example.com',
+    username: 'wanderer_sophie',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/273/200'
+  },
+  {
+    fullName: 'Hassan Ali',
+    email: 'hassan.ali@example.com',
+    username: 'voyager_hassan',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/274/200'
+  },
+  {
+    fullName: 'Ana Silva',
+    email: 'ana.silva@example.com',
+    username: 'travelbug_ana',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/275/200'
+  },
+  {
+    fullName: 'Viktor Petrov',
+    email: 'viktor.petrov@example.com',
+    username: 'pathfinder_viktor',
+    password: 'Creator123!',
+    profileImage: 'https://picsum.photos/id/276/200'
   }
 ];
+
+async function createFollowRelationships(creatorProfiles) {
+  try {
+    console.log('Creating follow relationships between creators...');
+    
+    // For each creator
+    for (const profile of creatorProfiles) {
+      try {
+        // Get the creator's user info for logging
+        const creator = await User.findById(profile.userId);
+        
+        // Get other creators excluding self
+        const otherCreators = creatorProfiles.filter(p => p.userId.toString() !== profile.userId.toString());
+        
+        // Each creator follows 6-10 other creators
+        const numToFollow = Math.floor(Math.random() * 5) + 6; // 6-10 creators
+        const shuffled = [...otherCreators].sort(() => 0.5 - Math.random());
+        const selectedCreators = shuffled.slice(0, numToFollow);
+
+        console.log(`${creator.username} will follow ${numToFollow} creators`);
+
+        // Create follow relationships
+        for (const targetProfile of selectedCreators) {
+          // Add to following list if not already following
+          if (!profile.following.includes(targetProfile.userId)) {
+            profile.following.push(targetProfile.userId);
+          }
+
+          // Add to followers list if not already following
+          if (!targetProfile.followers.includes(profile.userId)) {
+            targetProfile.followers.push(profile.userId);
+            await targetProfile.save();
+          }
+
+          const targetCreator = await User.findById(targetProfile.userId);
+          console.log(`${creator.username} followed ${targetCreator.username}`);
+        }
+
+        // Save creator's profile
+        await profile.save();
+        console.log(`Saved follow relationships for ${creator.username}`);
+
+      } catch (error) {
+        console.error('Error creating follow relationship:', error);
+      }
+    }
+
+    console.log('Successfully created all follow relationships between creators');
+  } catch (error) {
+    console.error('Error in createFollowRelationships:', error);
+  }
+}
 
 async function createCreators() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
+
+    const createdProfiles = [];
 
     // Create users and their profiles
     for (const creatorData of creators) {
@@ -125,14 +249,22 @@ async function createCreators() {
             totalPosts: 0,
             totalGuides: 0,
             totalLikes: 0
-          }
+          },
+          followers: [],
+          following: []
         });
         await profile.save();
+        createdProfiles.push(profile);
 
         console.log(`Created creator: ${creatorData.username}`);
       } catch (error) {
         console.error(`Error creating ${creatorData.username}:`, error.message);
       }
+    }
+
+    // Create follow relationships between creators
+    if (createdProfiles.length > 0) {
+      await createFollowRelationships(createdProfiles);
     }
 
     console.log('Finished creating creators');
@@ -144,4 +276,4 @@ async function createCreators() {
   }
 }
 
-createCreators(); 
+createCreators();

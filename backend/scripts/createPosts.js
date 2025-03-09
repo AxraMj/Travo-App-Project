@@ -70,6 +70,83 @@ const locations = [
       'Try local warungs for authentic food'
     ],
     weather: { temp: 29, description: 'Tropical', icon: 'sun' }
+  },
+  {
+    name: 'Cappadocia, Turkey',
+    coordinates: { latitude: 38.6431, longitude: 34.8307 },
+    description: 'Magical landscape of fairy chimneys and hot air balloons. A photographer\'s paradise at sunrise.',
+    tips: [
+      'Book a hot air balloon ride in advance',
+      'Stay in a cave hotel for unique experience',
+      'Visit the underground cities'
+    ],
+    weather: { temp: 23, description: 'Clear', icon: 'sun' }
+  },
+  {
+    name: 'Northern Lights, Iceland',
+    coordinates: { latitude: 64.9631, longitude: -19.0208 },
+    description: 'The mesmerizing aurora borealis dancing across the Arctic sky. Nature\'s most spectacular light show.',
+    tips: [
+      'Visit between September and March',
+      'Check aurora forecast before heading out',
+      'Bring warm clothes and tripod for photos'
+    ],
+    weather: { temp: -2, description: 'Clear Night', icon: 'moon' }
+  },
+  {
+    name: 'Great Barrier Reef, Australia',
+    coordinates: { latitude: -18.2871, longitude: 147.6992 },
+    description: 'World\'s largest coral reef system. Vibrant marine life and crystal-clear waters.',
+    tips: [
+      'Best diving conditions from June to October',
+      'Take an eco-friendly tour',
+      'Visit the Whitsunday Islands'
+    ],
+    weather: { temp: 27, description: 'Sunny', icon: 'sun' }
+  },
+  {
+    name: 'Sahara Desert, Morocco',
+    coordinates: { latitude: 31.7917, longitude: -7.0926 },
+    description: 'Endless golden dunes under starlit skies. Experience the magic of the desert.',
+    tips: [
+      'Take a camel trek to the camp',
+      'Stay overnight in a desert camp',
+      'Watch sunrise over the dunes'
+    ],
+    weather: { temp: 35, description: 'Clear', icon: 'sun' }
+  },
+  {
+    name: 'Angkor Wat, Cambodia',
+    coordinates: { latitude: 13.4125, longitude: 103.8670 },
+    description: 'Ancient temple complex showcasing incredible Khmer architecture. Spiritual and mystical atmosphere.',
+    tips: [
+      'Start early for sunrise photos',
+      'Hire a knowledgeable guide',
+      'Buy a multi-day pass'
+    ],
+    weather: { temp: 30, description: 'Partly Cloudy', icon: 'cloud-sun' }
+  },
+  {
+    name: 'Cinque Terre, Italy',
+    coordinates: { latitude: 44.1461, longitude: 9.6439 },
+    description: 'Five colorful coastal villages connected by scenic hiking trails. Mediterranean charm at its best.',
+    tips: [
+      'Take the hiking trail between villages',
+      'Try the local seafood',
+      'Buy a Cinque Terre Card for trains'
+    ],
+    weather: { temp: 24, description: 'Sunny', icon: 'sun' }
+  },
+  {
+    name: 'Zhangjiajie, China',
+    coordinates: { latitude: 29.1170, longitude: 110.4794 },
+    description: 'Towering sandstone pillars that inspired Avatar\'s floating mountains. Breathtaking natural scenery.',
+    tips: [
+      'Take the glass elevator for amazing views',
+      'Visit in off-peak season',
+      'Allow at least 2-3 days to explore'
+    ],
+    weather: { temp: 20, description: 'Misty', icon: 'cloud' }
   }
 ];
 
@@ -83,7 +160,17 @@ const images = [
   'https://picsum.photos/id/1033/1000',
   'https://picsum.photos/id/1036/1000',
   'https://picsum.photos/id/1039/1000',
-  'https://picsum.photos/id/1043/1000'
+  'https://picsum.photos/id/1043/1000',
+  'https://picsum.photos/id/1044/1000',
+  'https://picsum.photos/id/1045/1000',
+  'https://picsum.photos/id/1047/1000',
+  'https://picsum.photos/id/1048/1000',
+  'https://picsum.photos/id/1049/1000',
+  'https://picsum.photos/id/1050/1000',
+  'https://picsum.photos/id/1051/1000',
+  'https://picsum.photos/id/1052/1000',
+  'https://picsum.photos/id/1053/1000',
+  'https://picsum.photos/id/1054/1000'
 ];
 
 async function createPosts() {
@@ -100,8 +187,8 @@ async function createPosts() {
       try {
         console.log(`Creating posts for ${creator.username}`);
         
-        // Each creator gets 2-3 random posts
-        const numPosts = Math.floor(Math.random() * 2) + 2; // 2-3 posts
+        // Each creator gets 3-5 random posts
+        const numPosts = Math.floor(Math.random() * 3) + 3; // 3-5 posts
         
         for (let i = 0; i < numPosts; i++) {
           // Get random location and image
@@ -111,7 +198,7 @@ async function createPosts() {
           const post = new Post({
             userId: creator._id,
             image,
-            description: location.description,
+            description: `${location.description}\n\nExploring the beauty of ${location.name}. ${location.tips[0]}`,
             location: {
               name: location.name,
               coordinates: location.coordinates

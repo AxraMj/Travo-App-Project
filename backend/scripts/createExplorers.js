@@ -74,14 +74,148 @@ const explorers = [
     username: 'nomad_sofia',
     password: 'Explorer123!',
     profileImage: 'https://picsum.photos/id/256/200'
+  },
+  {
+    fullName: 'Aisha Khan',
+    email: 'aisha.khan@example.com',
+    username: 'wanderlust_aisha',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/257/200'
+  },
+  {
+    fullName: 'Carlos Morales',
+    email: 'carlos.morales@example.com',
+    username: 'explorer_carlos',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/258/200'
+  },
+  {
+    fullName: 'Elena Popov',
+    email: 'elena.popov@example.com',
+    username: 'traveler_elena',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/259/200'
+  },
+  {
+    fullName: 'Kai Nakamura',
+    email: 'kai.nakamura@example.com',
+    username: 'adventurer_kai',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/260/200'
+  },
+  {
+    fullName: 'Zara Ahmed',
+    email: 'zara.ahmed@example.com',
+    username: 'globetrotter_zara',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/261/200'
+  },
+  {
+    fullName: 'Felix Weber',
+    email: 'felix.weber@example.com',
+    username: 'wanderer_felix',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/262/200'
+  },
+  {
+    fullName: 'Luna Park',
+    email: 'luna.park@example.com',
+    username: 'explorer_luna',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/263/200'
+  },
+  {
+    fullName: 'Omar Hassan',
+    email: 'omar.hassan@example.com',
+    username: 'traveler_omar',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/264/200'
+  },
+  {
+    fullName: 'Ava Wilson',
+    email: 'ava.wilson@example.com',
+    username: 'adventurer_ava',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/265/200'
+  },
+  {
+    fullName: 'Marco Rossi',
+    email: 'marco.rossi@example.com',
+    username: 'voyager_marco',
+    password: 'Explorer123!',
+    profileImage: 'https://picsum.photos/id/266/200'
   }
 ];
+
+async function createFollowRelationships(explorerProfiles) {
+  try {
+    console.log('Creating follow relationships for explorers...');
+    
+    // Get all creators
+    const creators = await User.find({ accountType: 'creator' });
+    if (creators.length === 0) {
+      console.log('No creators found. Please run createCreators.js first');
+      return;
+    }
+
+    const creatorProfiles = await Profile.find({
+      userId: { $in: creators.map(c => c._id) }
+    });
+
+    console.log(`Found ${creators.length} creators to follow`);
+
+    // For each explorer
+    for (const explorerProfile of explorerProfiles) {
+      try {
+        // Get the explorer's user info for logging
+        const explorer = await User.findById(explorerProfile.userId);
+        
+        // Each explorer follows 5-8 creators
+        const numCreatorsToFollow = Math.floor(Math.random() * 4) + 5; // 5-8 creators
+        const shuffledCreators = [...creatorProfiles].sort(() => 0.5 - Math.random());
+        const selectedCreators = shuffledCreators.slice(0, numCreatorsToFollow);
+
+        console.log(`${explorer.username} will follow ${numCreatorsToFollow} creators`);
+
+        // Create follow relationships
+        for (const creatorProfile of selectedCreators) {
+          // Add creator to explorer's following list
+          if (!explorerProfile.following.includes(creatorProfile.userId)) {
+            explorerProfile.following.push(creatorProfile.userId);
+          }
+
+          // Add explorer to creator's followers list
+          if (!creatorProfile.followers.includes(explorerProfile.userId)) {
+            creatorProfile.followers.push(explorerProfile.userId);
+            await creatorProfile.save();
+          }
+
+          const creator = await User.findById(creatorProfile.userId);
+          console.log(`${explorer.username} followed ${creator.username}`);
+        }
+
+        // Save explorer's profile
+        await explorerProfile.save();
+        console.log(`Saved follow relationships for ${explorer.username}`);
+
+      } catch (error) {
+        console.error('Error creating follow relationship:', error);
+      }
+    }
+
+    console.log('Successfully created all follow relationships');
+  } catch (error) {
+    console.error('Error in createFollowRelationships:', error);
+  }
+}
 
 async function createExplorers() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
+
+    const createdProfiles = [];
 
     // Create users and their profiles
     for (const explorerData of explorers) {
@@ -122,14 +256,22 @@ async function createExplorers() {
             totalPosts: 0,
             totalGuides: 0,
             totalLikes: 0
-          }
+          },
+          followers: [],
+          following: []
         });
         await profile.save();
+        createdProfiles.push(profile);
 
         console.log(`Created explorer: ${explorerData.username}`);
       } catch (error) {
         console.error(`Error creating ${explorerData.username}:`, error.message);
       }
+    }
+
+    // Create follow relationships
+    if (createdProfiles.length > 0) {
+      await createFollowRelationships(createdProfiles);
     }
 
     console.log('Finished creating explorers');
@@ -141,4 +283,4 @@ async function createExplorers() {
   }
 }
 
-createExplorers(); 
+createExplorers();
