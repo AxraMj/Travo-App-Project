@@ -17,8 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import PostCard from '../../components/posts/PostCard';
+import FollowModal from '../../components/modals/FollowModal';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI } from '../../services/api/';
+import { postsAPI, profileAPI } from '../../services/api/';
 
 export default function ExplorerHomeScreen({ navigation }) {
   const { user, logout, updateUserProfile } = useAuth();
@@ -29,6 +30,9 @@ export default function ExplorerHomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [followingUsers, setFollowingUsers] = useState([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -82,6 +86,28 @@ export default function ExplorerHomeScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchFollowing = async () => {
+    try {
+      setLoadingFollowing(true);
+      const response = await profileAPI.getFollowing(user.id);
+      setFollowingUsers(response);
+    } catch (error) {
+      console.error('Error fetching following:', error);
+      Alert.alert('Error', 'Failed to load following list');
+    } finally {
+      setLoadingFollowing(false);
+    }
+  };
+
+  const handleFollowingPress = () => {
+    setShowFollowingModal(true);
+    fetchFollowing();
+  };
+
+  const handleUserPress = (userId) => {
+    navigation.navigate('UserProfile', { userId });
   };
 
   useEffect(() => {
@@ -228,13 +254,22 @@ export default function ExplorerHomeScreen({ navigation }) {
 
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => navigation.navigate('Following')}
+            onPress={handleFollowingPress}
           >
             <Ionicons name="people-outline" size={24} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
         <ProfileDropdown />
+
+        <FollowModal
+          visible={showFollowingModal}
+          onClose={() => setShowFollowingModal(false)}
+          data={followingUsers}
+          type="following"
+          loading={loadingFollowing}
+          onUserPress={handleUserPress}
+        />
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
