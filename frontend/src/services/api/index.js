@@ -6,4 +6,5 @@ export { postsAPI } from './posts';
 export { authAPI } from './auth';
 export { profileAPI } from './profile';
 export { guidesAPI } from './guides';
-export { notificationsAPI } from './notifications'; 
+export { notificationsAPI } from './notifications';
+export { searchAPI } from './search'; 

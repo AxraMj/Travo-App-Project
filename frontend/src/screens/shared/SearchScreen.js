@@ -8,12 +8,15 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
-  Dimensions 
+  Dimensions,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../context/AuthContext';
+import { searchAPI } from '../../services/api/search';
+import PostCard from '../../components/posts/PostCard';
 
 const { width } = Dimensions.get('window');
 
@@ -50,58 +53,76 @@ export default function SearchScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState(null);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState({
+    users: [],
+    posts: [],
+    locations: []
+  });
+  const [recentSearches, setRecentSearches] = useState([]);
 
-  const renderCategoryItem = ({ item }) => (
+  const performSearch = async (query) => {
+    if (!query.trim()) return;
+    
+    setLoading(true);
+    try {
+      const results = await searchAPI.searchAll(query);
+      setSearchResults(results);
+      
+      // Add to recent searches
+      setRecentSearches(prev => {
+        const newSearches = [query, ...prev.filter(s => s !== query)].slice(0, 5);
+        return newSearches;
+      });
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchQuery) {
+        performSearch(searchQuery);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  const renderUserItem = ({ item }) => (
     <TouchableOpacity 
-      style={[
-        styles.categoryItem,
-        activeCategory === item.id && styles.categoryItemActive
-      ]}
-      onPress={() => setActiveCategory(item.id)}
+      style={styles.userItem}
+      onPress={() => navigation.navigate('UserProfile', { userId: item._id })}
     >
-      <View style={styles.categoryIcon}>
-        <Ionicons 
-          name={item.icon} 
-          size={24} 
-          color={activeCategory === item.id ? '#ffffff' : '#FF6B6B'} 
-        />
+      <Image 
+        source={{ uri: item.profileImage }} 
+        style={styles.userImage}
+      />
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>{item.fullName}</Text>
+        <Text style={styles.userHandle}>@{item.username}</Text>
       </View>
-      <Text style={[
-        styles.categoryText,
-        activeCategory === item.id && styles.categoryTextActive
-      ]}>
-        {item.name}
-      </Text>
+      {item.accountType === 'creator' && (
+        <View style={styles.creatorBadge}>
+          <Text style={styles.creatorBadgeText}>Creator</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
-  const renderDestinationItem = ({ item }) => (
+  const renderLocationItem = ({ item }) => (
     <TouchableOpacity 
-      style={styles.destinationCard}
-      onPress={() => navigation.navigate('DestinationDetail', { destination: item })}
+      style={styles.locationItem}
+      onPress={() => navigation.navigate('LocationDetail', { location: item })}
     >
-      <Image 
-        source={{ uri: item.image }} 
-        style={styles.destinationImage}
-      />
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
-        style={styles.destinationGradient}
-      >
-        <View style={styles.destinationInfo}>
-          <View>
-            <Text style={styles.destinationName}>{item.name}</Text>
-            <Text style={styles.destinationCountry}>{item.country}</Text>
-          </View>
-          <View style={styles.destinationStats}>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={16} color="#FFD700" />
-              <Text style={styles.ratingText}>{item.rating}</Text>
-            </View>
-            <Text style={styles.postsCount}>{item.posts} posts</Text>
-          </View>
-        </View>
-      </LinearGradient>
+      <View style={styles.locationInfo}>
+        <Text style={styles.locationName}>{item._id}</Text>
+        <Text style={styles.postCount}>{item.postCount} posts</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.5)" />
     </TouchableOpacity>
   );
 
@@ -125,7 +146,7 @@ export default function SearchScreen({ navigation }) {
             <Ionicons name="search" size={20} color="rgba(255,255,255,0.5)" />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search destinations, experiences..."
+              placeholder="Search destinations, users..."
               placeholderTextColor="rgba(255,255,255,0.5)"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -140,7 +161,7 @@ export default function SearchScreen({ navigation }) {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content}>
           {/* Recent Searches */}
           {isSearchFocused && searchQuery.length === 0 && (
             <View style={styles.recentSearches}>
@@ -158,42 +179,107 @@ export default function SearchScreen({ navigation }) {
             </View>
           )}
 
-          {/* Categories */}
-          {!isSearchFocused && (
+          {/* Loading State */}
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#ffffff" />
+            </View>
+          )}
+
+          {/* Search Results */}
+          {!loading && searchQuery && (
+            <>
+              {/* Users Section */}
+              {searchResults.users.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Users</Text>
+                  <FlatList
+                    data={searchResults.users}
+                    renderItem={renderUserItem}
+                    keyExtractor={item => item._id}
+                    horizontal={false}
+                    scrollEnabled={false}
+                  />
+                </View>
+              )}
+
+              {/* Locations Section */}
+              {searchResults.locations.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Locations</Text>
+                  <FlatList
+                    data={searchResults.locations}
+                    renderItem={renderLocationItem}
+                    keyExtractor={item => item._id}
+                    horizontal={false}
+                    scrollEnabled={false}
+                  />
+                </View>
+              )}
+
+              {/* Posts Section */}
+              {searchResults.posts.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Posts</Text>
+                  {searchResults.posts.map(post => (
+                    <PostCard
+                      key={post._id}
+                      post={post}
+                      onPostUpdate={() => performSearch(searchQuery)}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* No Results */}
+              {!searchResults.users.length && !searchResults.locations.length && !searchResults.posts.length && (
+                <View style={styles.noResults}>
+                  <Ionicons name="search-outline" size={48} color="rgba(255,255,255,0.5)" />
+                  <Text style={styles.noResultsText}>No results found</Text>
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Categories and Suggestions when no search */}
+          {!searchQuery && !isSearchFocused && (
             <>
               <Text style={styles.sectionTitle}>Explore Categories</Text>
               <FlatList
                 data={categories}
-                renderItem={renderCategoryItem}
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={[
+                      styles.categoryItem,
+                      activeCategory === item.id && styles.categoryItemActive
+                    ]}
+                    onPress={() => setActiveCategory(item.id)}
+                  >
+                    <View style={styles.categoryIcon}>
+                      <Ionicons 
+                        name={item.icon} 
+                        size={24} 
+                        color={activeCategory === item.id ? '#ffffff' : '#FF6B6B'} 
+                      />
+                    </View>
+                    <Text style={[
+                      styles.categoryText,
+                      activeCategory === item.id && styles.categoryTextActive
+                    ]}>
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 keyExtractor={item => item.id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesList}
               />
-
-              {/* Popular Destinations */}
-              <View style={styles.popularSection}>
-                <Text style={styles.sectionTitle}>Popular Destinations</Text>
-                <FlatList
-                  data={popularDestinations}
-                  renderItem={renderDestinationItem}
-                  keyExtractor={item => item.id}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.destinationsList}
-                />
-              </View>
-
-              {/* Trending Experiences */}
-              <View style={styles.trendingSection}>
-                <Text style={styles.sectionTitle}>Trending Experiences</Text>
-                {/* Add trending experiences content */}
-              </View>
             </>
           )}
         </ScrollView>
 
-        {/* Add Bottom Navigation */}
+        {/* Bottom Navigation */}
         <View style={styles.bottomNav}>
           <TouchableOpacity 
             style={styles.navItem}
@@ -247,6 +333,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 8,
   },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: 24,
+  },
   sectionTitle: {
     color: '#ffffff',
     fontSize: 18,
@@ -282,65 +374,85 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF6B6B',
   },
-  destinationCard: {
-    width: width * 0.7,
-    height: 200,
-    marginRight: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  destinationImage: {
-    width: '100%',
-    height: '100%',
-  },
-  destinationGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    justifyContent: 'flex-end',
-    padding: 12,
-  },
-  destinationInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  destinationName: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  destinationCountry: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-  },
-  destinationStats: {
-    alignItems: 'flex-end',
-  },
-  ratingContainer: {
+  userItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
-  ratingText: {
+  userImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
     color: '#ffffff',
-    marginLeft: 4,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  postsCount: {
-    color: 'rgba(255,255,255,0.8)',
+  userHandle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+  },
+  creatorBadge: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  creatorBadgeText: {
+    color: '#ffffff',
     fontSize: 12,
-    marginTop: 2,
+    fontWeight: '600',
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  postCount: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noResults: {
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  noResultsText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    marginTop: 12,
   },
   recentSearches: {
-    paddingHorizontal: 16,
     paddingTop: 16,
   },
   recentSearchItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
@@ -348,17 +460,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginLeft: 12,
     fontSize: 16,
-  },
-  popularSection: {
-    marginTop: 24,
-  },
-  destinationsList: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  trendingSection: {
-    marginTop: 24,
-    paddingBottom: 24,
   },
   bottomNav: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ const guideRoutes = require('./routes/guide');
 const postRoutes = require('./routes/post');
 const profileRoutes = require('./routes/profile');
 const notificationRoutes = require('./routes/notification');
+const searchRoutes = require('./routes/search');
 const auth = require('./middleware/auth');
 
 const app = express();
@@ -91,6 +92,7 @@ app.use('/api/guides', auth, guideRoutes);
 app.use('/api/posts', auth, postRoutes);
 app.use('/api/profiles', auth, profileRoutes);
 app.use('/api/notifications', auth, notificationRoutes);
+app.use('/api/search', searchRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
