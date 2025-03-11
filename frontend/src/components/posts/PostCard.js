@@ -536,15 +536,14 @@ export default function PostCard({ post, onPostUpdate, onPostDelete }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+   container: {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
-    marginHorizontal: 16,
+    width: '100%',
     marginBottom: 16,
-    width:'90%',
-    alignSelf:'center',
     overflow: 'hidden',
   },
+ 
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

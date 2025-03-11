@@ -903,6 +903,8 @@ const styles = StyleSheet.create({
   postsContainer: {
     flex: 1,
     width: '100%',
+    paddingHorizontal: 16,
+    alignItems: 'center'
   },
   postsContent: {
     paddingBottom: 20,
