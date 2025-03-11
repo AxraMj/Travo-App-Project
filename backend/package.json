@@ -12,13 +12,17 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@react-native-async-storage/async-storage": "^2.1.2",
     "axios": "^1.8.1",
     "bcryptjs": "^3.0.2",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-validator": "^7.2.1",
+    "fluent-ffmpeg": "^2.1.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.11.0",
     "ws": "^8.18.1"

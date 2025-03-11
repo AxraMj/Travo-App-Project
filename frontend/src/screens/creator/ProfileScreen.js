@@ -16,10 +16,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
-import { guidesAPI, profileAPI, postsAPI } from '../../services/api/';
+import { guidesAPI, profileAPI, postsAPI, videosAPI } from '../../services/api/';
 import { useFocusEffect } from '@react-navigation/native';
 import PostCard from '../../components/posts/PostCard';
 import GuideCard from '../../components/guides/GuideCard';
+import VideoCard from '../../components/videos/VideoCard';
 import FollowModal from '../../components/modals/FollowModal';
 
 const { width } = Dimensions.get('window');
@@ -66,6 +67,12 @@ export default function ProfileScreen({ navigation }) {
   const [followModalType, setFollowModalType] = useState('followers');
   const [followModalData, setFollowModalData] = useState([]);
   const [followModalLoading, setFollowModalLoading] = useState(false);
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showFollowModal, setShowFollowModal] = useState(false);
+  const [modalType, setModalType] = useState('followers');
+  const [modalData, setModalData] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -74,42 +81,89 @@ export default function ProfileScreen({ navigation }) {
     setError(null);
       
     try {
-      const [profileResponse, guidesResponse, postsResponse] = await Promise.all([
+      const [profileResponse, guidesResponse, postsResponse, videosResponse] = await Promise.allSettled([
         profileAPI.getProfile(user.id),
         guidesAPI.getUserGuides(user.id),
-        postsAPI.getUserPosts(user.id)
+        postsAPI.getUserPosts(user.id),
+        videosAPI.getUserVideos(user.id)
       ]);
 
-      // Format guides with user information
-      const formattedGuides = guidesResponse.map(guide => ({
-        ...guide,
-        username: user.username,
-        userImage: user.profileImage
-      }));
+      // Handle profile response
+      if (profileResponse.status === 'fulfilled') {
+        setProfileData(profileResponse.value);
+      } else {
+        console.error('Error fetching profile:', profileResponse.reason);
+        setProfileData({
+          bio: '',
+          location: '',
+          socialLinks: {},
+          stats: { totalPosts: 0, totalGuides: 0, totalVideos: 0 }
+        });
+      }
 
-      // Update profile with correct post count
-      const updatedProfile = {
-        ...profileResponse,
-        stats: {
-          ...profileResponse.stats,
-          totalPosts: postsResponse.length
+      // Handle guides response
+      if (guidesResponse.status === 'fulfilled') {
+        const formattedGuides = guidesResponse.value.map(guide => ({
+          ...guide,
+          username: user.username,
+          userImage: user.profileImage
+        }));
+        setGuides(formattedGuides);
+      } else {
+        console.error('Error fetching guides:', guidesResponse.reason);
+        setGuides([]);
+      }
+
+      // Handle posts response
+      if (postsResponse.status === 'fulfilled') {
+        setPosts(postsResponse.value);
+        
+        // Update profile stats only if we have valid profile data
+        if (profileResponse.status === 'fulfilled') {
+          const updatedProfile = {
+            ...profileResponse.value,
+            stats: {
+              ...profileResponse.value.stats,
+              totalPosts: postsResponse.value.length
+            }
+          };
+          setProfileData(updatedProfile);
+
+          // Update the profile stats in the backend
+          try {
+            await profileAPI.updateStats({
+              stats: {
+                totalPosts: postsResponse.value.length
+              }
+            });
+          } catch (error) {
+            console.error('Error updating profile stats:', error);
+          }
         }
-      };
+      } else {
+        console.error('Error fetching posts:', postsResponse.reason);
+        setPosts([]);
+      }
 
-      setProfileData(updatedProfile);
-      setGuides(formattedGuides);
-      setPosts(postsResponse);
+      // Handle videos response
+      if (videosResponse.status === 'fulfilled') {
+        setVideos(videosResponse.value);
+      } else {
+        console.error('Error fetching videos:', videosResponse.reason);
+        setVideos([]);
+      }
 
-      // Update the profile stats in the backend
-      await profileAPI.updateStats({
-        stats: {
-          totalPosts: postsResponse.length
-        }
-      });
+      // Only set error if all requests failed
+      if (profileResponse.status === 'rejected' && 
+          guidesResponse.status === 'rejected' && 
+          postsResponse.status === 'rejected' &&
+          videosResponse.status === 'rejected') {
+        setError('Failed to load profile data. Please try again.');
+      }
 
     } catch (error) {
       console.error('Error fetching profile data:', error);
-      setError(error.message || 'Failed to load profile data');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -448,11 +502,85 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const handleVideoUpdate = (updatedVideo) => {
+    setVideos(prevVideos => 
+      prevVideos.map(video => 
+        video._id === updatedVideo._id ? updatedVideo : video
+      )
+    );
+  };
+
+  const handleVideoDelete = async (videoId) => {
+    try {
+      await videosAPI.deleteVideo(videoId);
+      setVideos(prevVideos => prevVideos.filter(video => video._id !== videoId));
+    } catch (error) {
+      console.error('Error deleting video:', error);
+    }
+  };
+
+  const renderVideosContent = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ffffff" />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.contentContainer}>
+        {videos.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="videocam-outline" size={48} color="#ffffff" />
+            <Text style={styles.emptyText}>No videos yet</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={videos}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <VideoCard
+                video={item}
+                onVideoUpdate={handleVideoUpdate}
+                onVideoDelete={handleVideoDelete}
+                isOwner={true}
+              />
+            )}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.videoList}
+            nestedScrollEnabled={true}
+            scrollEnabled={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#ffffff"
+              />
+            }
+          />
+        )}
+        
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('CreateVideo')}
+        >
+          <Ionicons name="videocam" size={24} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderContent = () => {
-    if (activeTab === 'posts') {
-      return renderPostsContent();
-    } else {
-      return renderGuideContent();
+    switch (activeTab) {
+      case 'posts':
+        return renderPostsContent();
+      case 'guides':
+        return renderGuideContent();
+      case 'videos':
+        return renderVideosContent();
+      default:
+        return null;
     }
   };
 
@@ -573,7 +701,7 @@ export default function ProfileScreen({ navigation }) {
             )}
           </View>
 
-          {/* Modified Content Tabs section with just Posts and Guides */}
+          {/* Modified Content Tabs section with just Posts, Guides, and Videos */}
           <View style={styles.tabContainer}>
             <TouchableOpacity 
               style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
@@ -590,6 +718,15 @@ export default function ProfileScreen({ navigation }) {
             >
               <Text style={[styles.tabText, activeTab === 'guides' && styles.activeTabText]}>
                 Guides
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.tab, activeTab === 'videos' && styles.activeTab]}
+              onPress={() => setActiveTab('videos')}
+            >
+              <Text style={[styles.tabText, activeTab === 'videos' && styles.activeTabText]}>
+                Videos
               </Text>
             </TouchableOpacity>
           </View>
@@ -747,23 +884,21 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#ffffff',
   },
   tabText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
-  },
-  activeTab: {
-    borderTopWidth: 2,
-    borderTopColor: '#ffffff',
+    fontWeight: '600',
   },
   activeTabText: {
     color: '#ffffff',
-    fontWeight: '500',
   },
   postsContainer: {
     flex: 1,
@@ -773,11 +908,13 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 40,
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.5)',
+    color: '#ffffff',
     fontSize: 16,
     marginTop: 12,
     marginBottom: 20,
@@ -785,7 +922,7 @@ const styles = StyleSheet.create({
   createButton: {
     backgroundColor: '#414345',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 20,
   },
   createButtonText: {
@@ -884,5 +1021,46 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  videosContainer: {
+    flex: 1,
+    position: 'relative',
+    minHeight: 200,
+  },
+  videosList: {
+    padding: 16,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FF6B6B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  contentContainer: {
+    flex: 1,
+    position: 'relative',
+    minHeight: 300,
+  },
+  noContentText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  videoList: {
+    padding: 16,
   },
 }); 

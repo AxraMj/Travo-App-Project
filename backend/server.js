@@ -11,6 +11,7 @@ const postRoutes = require('./routes/post');
 const profileRoutes = require('./routes/profile');
 const notificationRoutes = require('./routes/notification');
 const searchRoutes = require('./routes/search');
+const videoRoutes = require('./routes/video');
 const auth = require('./middleware/auth');
 
 const app = express();
@@ -83,8 +84,8 @@ global.io = {
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -93,6 +94,7 @@ app.use('/api/posts', auth, postRoutes);
 app.use('/api/profiles', auth, profileRoutes);
 app.use('/api/notifications', auth, notificationRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/videos', auth, videoRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

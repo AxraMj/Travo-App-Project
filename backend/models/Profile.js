@@ -41,7 +41,19 @@ const profileSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
+    totalVideos: {
+      type: Number,
+      default: 0
+    },
     totalLikes: {
+      type: Number,
+      default: 0
+    },
+    totalVideoViews: {
+      type: Number,
+      default: 0
+    },
+    totalVideoLikes: {
       type: Number,
       default: 0
     }

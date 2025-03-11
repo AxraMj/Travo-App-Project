@@ -7,4 +7,5 @@ export { authAPI } from './auth';
 export { profileAPI } from './profile';
 export { guidesAPI } from './guides';
 export { notificationsAPI } from './notifications';
-export { searchAPI } from './search'; 
+export { searchAPI } from './search';
+export { videosAPI } from './videos'; 
