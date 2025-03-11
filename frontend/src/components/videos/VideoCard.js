@@ -21,7 +21,8 @@ const VideoCard = ({
   video,
   onVideoUpdate,
   onVideoDelete,
-  isOwner
+  isOwner,
+  containerStyle
 }) => {
   const navigation = useNavigation();
   const { user } = useAuth();
@@ -101,7 +102,7 @@ const VideoCard = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {/* User Info */}
       <TouchableOpacity style={styles.userInfo} onPress={handleUserPress}>
         <Image
@@ -203,8 +204,9 @@ const VideoCard = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#414345',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
+    width: '100%',
     marginBottom: 16,
     overflow: 'hidden',
   },

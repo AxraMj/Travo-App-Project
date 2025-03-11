@@ -14,40 +14,49 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import PostCard from '../../components/posts/PostCard';
+import VideoCard from '../../components/videos/VideoCard';
 import HomeHeader from '../../components/navigation/HomeHeader';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI } from '../../services/api/';
+import { postsAPI, videosAPI } from '../../services/api/';
 
 export default function CreatorHomeScreen({ navigation }) {
   const { user } = useAuth();
-  const [posts, setPosts] = useState([]);
-  const [followingPosts, setFollowingPosts] = useState([]);
   const [activeTab, setActiveTab] = useState('forYou');
+  const [posts, setPosts] = useState([]);
+  const [videos, setVideos] = useState([]);
+  const [followingPosts, setFollowingPosts] = useState([]);
+  const [followingVideos, setFollowingVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchPosts = async () => {
+  const fetchContent = async () => {
     try {
       setError(null);
       setLoading(true);
-      
-      // Fetch both types of posts in parallel
-      const [forYouResponse, followingResponse] = await Promise.all([
+      const [forYouPosts, forYouVideos, followedPosts, followedVideos] = await Promise.all([
         postsAPI.getAllPosts(),
-        postsAPI.getFollowedPosts()
+        videosAPI.getAllVideos(),
+        postsAPI.getFollowedPosts(),
+        videosAPI.getAllVideos() // Filter followed videos on client side
       ]);
 
-      setPosts(forYouResponse);
-      setFollowingPosts(followingResponse);
+      setPosts(forYouPosts);
+      setVideos(forYouVideos);
+      setFollowingPosts(followedPosts);
+      // Filter videos from followed creators
+      const followedCreatorVideos = followedVideos.filter(video => 
+        followedPosts.some(post => post.userId === video.userId)
+      );
+      setFollowingVideos(followedCreatorVideos);
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      setError('Failed to load posts. Please try again.');
+      console.error('Error fetching content:', error);
+      setError('Failed to load content. Please check your internet connection and try again.');
       Alert.alert(
         'Error',
-        'Failed to load posts. Please check your internet connection and try again.',
+        'Failed to load content. Please check your internet connection and try again.',
         [
-          { text: 'Retry', onPress: () => fetchPosts() },
+          { text: 'Retry', onPress: () => fetchContent() },
           { text: 'Cancel', style: 'cancel' }
         ]
       );
@@ -57,30 +66,64 @@ export default function CreatorHomeScreen({ navigation }) {
   };
 
   useEffect(() => {
-    fetchPosts();
+    fetchContent();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchPosts();
+    await fetchContent();
     setRefreshing(false);
   };
 
   const handlePostDelete = (postId) => {
-    // Update the UI immediately
-    setPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
-    setFollowingPosts(currentPosts => currentPosts.filter(post => post._id !== postId));
+    setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
+    setFollowingPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
   };
 
   const handlePostUpdate = (updatedPost) => {
-    const updatePostsArray = (postsArray) => {
-      return postsArray.map(post => 
-        post._id === updatedPost._id ? updatedPost : post
-      );
-    };
+    const updatePosts = (prevPosts) => 
+      prevPosts.map(post => post._id === updatedPost._id ? updatedPost : post);
+    
+    setPosts(updatePosts);
+    setFollowingPosts(updatePosts);
+  };
 
-    setPosts(updatePostsArray);
-    setFollowingPosts(updatePostsArray);
+  const handleVideoDelete = async (videoId) => {
+    try {
+      await videosAPI.deleteVideo(videoId);
+      setVideos(prevVideos => prevVideos.filter(video => video._id !== videoId));
+      setFollowingVideos(prevVideos => prevVideos.filter(video => video._id !== videoId));
+    } catch (error) {
+      console.error('Error deleting video:', error);
+    }
+  };
+
+  const handleVideoUpdate = (updatedVideo) => {
+    const updateVideos = (prevVideos) =>
+      prevVideos.map(video => video._id === updatedVideo._id ? updatedVideo : video);
+    
+    setVideos(updateVideos);
+    setFollowingVideos(updateVideos);
+  };
+
+  const renderContent = ({ item }) => {
+    if (item.type === 'video') {
+      return (
+        <VideoCard
+          video={item}
+          onVideoUpdate={handleVideoUpdate}
+          onVideoDelete={handleVideoDelete}
+          isOwner={item.userId === user?.id}
+        />
+      );
+    }
+    return (
+      <PostCard
+        post={item}
+        onPostUpdate={handlePostUpdate}
+        onPostDelete={handlePostDelete}
+      />
+    );
   };
 
   const renderEmptyComponent = () => {
@@ -99,7 +142,7 @@ export default function CreatorHomeScreen({ navigation }) {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={styles.retryButton}
-            onPress={fetchPosts}
+            onPress={fetchContent}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
@@ -111,9 +154,9 @@ export default function CreatorHomeScreen({ navigation }) {
       return (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={48} color="rgba(255,255,255,0.5)" />
-          <Text style={styles.emptyText}>No posts available</Text>
+          <Text style={styles.emptyText}>No content available</Text>
           <Text style={styles.emptySubText}>
-            Follow some creators to see their posts here
+            Follow some creators to see their content here
           </Text>
           <TouchableOpacity 
             style={styles.exploreButton}
@@ -128,7 +171,7 @@ export default function CreatorHomeScreen({ navigation }) {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="images-outline" size={48} color="rgba(255,255,255,0.5)" />
-        <Text style={styles.emptyText}>No posts yet</Text>
+        <Text style={styles.emptyText}>No content yet</Text>
         <TouchableOpacity 
           style={styles.createButton}
           onPress={() => navigation.navigate('CreatePost')}
@@ -139,7 +182,14 @@ export default function CreatorHomeScreen({ navigation }) {
     );
   };
 
-  const currentPosts = activeTab === 'following' ? followingPosts : posts;
+  const currentContent = activeTab === 'following'
+    ? [...followingPosts.map(post => ({ ...post, type: 'post' })),
+       ...followingVideos.map(video => ({ ...video, type: 'video' }))]
+    : [...posts.map(post => ({ ...post, type: 'post' })),
+       ...videos.map(video => ({ ...video, type: 'video' }))];
+
+  // Sort by creation date, newest first
+  currentContent.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   return (
     <View style={styles.container}>
@@ -169,28 +219,27 @@ export default function CreatorHomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <FlatList
-          data={currentPosts}
-          renderItem={({ item }) => (
-            item ? (
-              <PostCard 
-                post={item} 
-                onPostUpdate={handlePostUpdate}
-                onPostDelete={handlePostDelete}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#ffffff" />
+          </View>
+        ) : (
+          <FlatList
+            data={currentContent}
+            renderItem={renderContent}
+            keyExtractor={item => `${item.type}-${item._id}`}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.contentContainer}
+            ListEmptyComponent={renderEmptyComponent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor="#ffffff"
               />
-            ) : null
-          )}
-          keyExtractor={item => item?._id || Math.random().toString()}
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh}
-              tintColor="#ffffff"
-            />
-          }
-          ListEmptyComponent={renderEmptyComponent}
-          contentContainerStyle={styles.listContainer}
-        />
+            }
+          />
+        )}
 
         <View style={styles.bottomNav}>
           <TouchableOpacity style={styles.navItem}>
@@ -249,20 +298,14 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#ffffff',
   },
-  listContainer: {
-    flexGrow: 1,
+  contentContainer: {
+    padding: 16,
+    paddingTop: 8,
   },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#232526',
-  },
-  navItem: {
-    padding: 8,
   },
   emptyContainer: {
     flex: 1,
@@ -326,5 +369,17 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#232526',
+  },
+  navItem: {
+    padding: 8,
   },
 }); 

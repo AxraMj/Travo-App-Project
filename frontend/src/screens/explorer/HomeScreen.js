@@ -17,15 +17,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import PostCard from '../../components/posts/PostCard';
+import VideoCard from '../../components/videos/VideoCard';
 import FollowModal from '../../components/modals/FollowModal';
 import { useAuth } from '../../context/AuthContext';
-import { postsAPI, profileAPI } from '../../services/api/';
+import { postsAPI, profileAPI, videosAPI } from '../../services/api/';
 
 export default function ExplorerHomeScreen({ navigation }) {
   const { user, logout, updateUserProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('forYou');
   const [posts, setPosts] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [followingPosts, setFollowingPosts] = useState([]);
+  const [followingVideos, setFollowingVideos] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,22 +70,30 @@ export default function ExplorerHomeScreen({ navigation }) {
     setShowDropdown(false);
   };
 
-  const fetchPosts = async () => {
+  const fetchContent = async () => {
     try {
       setError(null);
       setLoading(true);
       
-      // Fetch both types of posts in parallel
-      const [forYouResponse, followingResponse] = await Promise.all([
+      // Fetch all content types in parallel
+      const [forYouPosts, forYouVideos, followedPosts, followedVideos] = await Promise.all([
         postsAPI.getAllPosts(),
-        postsAPI.getFollowedPosts()
+        videosAPI.getAllVideos(),
+        postsAPI.getFollowedPosts(),
+        videosAPI.getAllVideos() // Filter followed videos on client side
       ]);
 
-      setPosts(forYouResponse);
-      setFollowingPosts(followingResponse);
+      setPosts(forYouPosts);
+      setVideos(forYouVideos);
+      setFollowingPosts(followedPosts);
+      // Filter videos from followed creators
+      const followedCreatorVideos = followedVideos.filter(video => 
+        followedPosts.some(post => post.userId === video.userId)
+      );
+      setFollowingVideos(followedCreatorVideos);
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      setError('Failed to load posts. Please try again.');
+      console.error('Error fetching content:', error);
+      setError('Failed to load content. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -111,12 +122,12 @@ export default function ExplorerHomeScreen({ navigation }) {
   };
 
   useEffect(() => {
-    fetchPosts();
+    fetchContent();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchPosts();
+    await fetchContent();
     setRefreshing(false);
   };
 
@@ -137,37 +148,33 @@ export default function ExplorerHomeScreen({ navigation }) {
     setFollowingPosts(updatePostsArray);
   };
 
-  const ProfileDropdown = () => (
-    <Modal
-      visible={showDropdown}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={() => setShowDropdown(false)}
-    >
-      <Pressable 
-        style={styles.dropdownOverlay}
-        onPress={() => setShowDropdown(false)}
-      >
-        <View style={styles.dropdownMenu}>
-          <TouchableOpacity 
-            style={styles.dropdownItem}
-            onPress={pickImage}
-          >
-            <Ionicons name="camera-outline" size={20} color="#ffffff" />
-            <Text style={styles.dropdownText}>Change Profile Picture</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.dropdownItem, styles.logoutItem]}
-            onPress={handleLogout}
-          >
-            <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </Pressable>
-    </Modal>
-  );
+  const handleVideoUpdate = (updatedVideo) => {
+    const updateVideos = (prevVideos) =>
+      prevVideos.map(video => video._id === updatedVideo._id ? updatedVideo : video);
+    
+    setVideos(updateVideos);
+    setFollowingVideos(updateVideos);
+  };
+
+  const renderContent = ({ item }) => {
+    if (item.type === 'video') {
+      return (
+        <VideoCard
+          video={item}
+          onVideoUpdate={handleVideoUpdate}
+          isOwner={false}
+          containerStyle={styles.cardContainer}
+        />
+      );
+    }
+    return (
+      <PostCard
+        post={item}
+        onPostUpdate={handlePostUpdate}
+        onPostDelete={handlePostDelete}
+      />
+    );
+  };
 
   const renderEmptyComponent = () => {
     if (loading) {
@@ -185,7 +192,7 @@ export default function ExplorerHomeScreen({ navigation }) {
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity 
             style={styles.retryButton}
-            onPress={fetchPosts}
+            onPress={fetchContent}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
@@ -222,7 +229,57 @@ export default function ExplorerHomeScreen({ navigation }) {
     );
   };
 
-  const currentPosts = activeTab === 'following' ? followingPosts : posts;
+  const currentContent = activeTab === 'following'
+    ? [...followingPosts.map(post => ({ ...post, type: 'post' })),
+       ...followingVideos.map(video => ({ ...video, type: 'video' }))]
+    : [...posts.map(post => ({ ...post, type: 'post' })),
+       ...videos.map(video => ({ ...video, type: 'video' }))];
+
+  // Sort by creation date, newest first
+  currentContent.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const ProfileDropdown = () => (
+    <Modal
+      visible={showDropdown}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowDropdown(false)}
+    >
+      <Pressable 
+        style={styles.dropdownOverlay}
+        onPress={() => setShowDropdown(false)}
+      >
+        <View style={styles.dropdownMenu}>
+          <TouchableOpacity 
+            style={styles.dropdownItem}
+            onPress={pickImage}
+          >
+            <Ionicons name="camera-outline" size={20} color="#ffffff" />
+            <Text style={styles.dropdownText}>Change Profile Picture</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.dropdownItem, styles.logoutItem]}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+
+  const FollowModalComponent = () => (
+    <FollowModal
+      visible={showFollowingModal}
+      onClose={() => setShowFollowingModal(false)}
+      data={followingUsers}
+      type="following"
+      loading={loadingFollowing}
+      onUserPress={handleUserPress}
+    />
+  );
 
   return (
     <View style={styles.container}>
@@ -262,14 +319,7 @@ export default function ExplorerHomeScreen({ navigation }) {
 
         <ProfileDropdown />
 
-        <FollowModal
-          visible={showFollowingModal}
-          onClose={() => setShowFollowingModal(false)}
-          data={followingUsers}
-          type="following"
-          loading={loadingFollowing}
-          onUserPress={handleUserPress}
-        />
+        <FollowModalComponent />
 
         {/* Tabs */}
         <View style={styles.tabContainer}>
@@ -294,17 +344,9 @@ export default function ExplorerHomeScreen({ navigation }) {
 
         {/* Posts List */}
         <FlatList
-          data={currentPosts}
-          renderItem={({ item }) => (
-            item ? (
-              <PostCard 
-                post={item} 
-                onPostUpdate={handlePostUpdate}
-                onPostDelete={handlePostDelete}
-              />
-            ) : null
-          )}
-          keyExtractor={item => item?._id || Math.random().toString()}
+          data={currentContent}
+          renderItem={renderContent}
+          keyExtractor={item => `${item.type}-${item._id}`}
           refreshControl={
             <RefreshControl 
               refreshing={refreshing} 
@@ -512,5 +554,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  cardContainer: {
+    width: '100%',
+    marginBottom: 16,
   },
 }); 

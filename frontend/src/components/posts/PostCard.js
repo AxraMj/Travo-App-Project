@@ -541,6 +541,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginHorizontal: 16,
     marginBottom: 16,
+    width:'90%',
+    alignSelf:'center',
     overflow: 'hidden',
   },
   header: {
