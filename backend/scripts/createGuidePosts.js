@@ -4,76 +4,62 @@ const User = require('../models/User');
 const Guide = require('../models/Guide');
 const Profile = require('../models/Profile');
 
-const travelTips = [
+const locationGuides = [
   {
     location: 'Kyoto, Japan',
-    locationNote: 'Best during cherry blossom season',
-    text: 'Visit the Fushimi Inari Shrine early morning to avoid crowds. The thousand torii gates are most photogenic at sunrise. Don\'t miss the local street food in Nishiki Market!',
+    locationNote: 'Best during cherry blossom season (late March to early April). Visit early morning to avoid crowds.'
   },
   {
     location: 'Santorini, Greece',
-    locationNote: 'Perfect for sunset views',
-    text: 'Book a hotel in Oia for the best sunset views. Take the hiking trail from Fira to Oia for breathtaking caldera views. Best time to visit is May to September when the weather is perfect.',
+    locationNote: 'Perfect for sunset views. Best time to visit is May to September for ideal weather.'
   },
   {
     location: 'Machu Picchu, Peru',
-    locationNote: 'High altitude location',
-    text: 'Spend at least 2-3 days in Cusco to acclimatize before visiting Machu Picchu. Book the first bus up to the site to catch the sunrise. Consider hiking the Huayna Picchu mountain for unique views.',
+    locationNote: 'High altitude location. Spend 2-3 days in Cusco to acclimatize before visiting.'
   },
   {
     location: 'Venice, Italy',
-    locationNote: 'Early morning is magical',
-    text: 'Explore the quiet canals before 8 AM for the best photos. Buy a vaporetto pass for unlimited water bus rides. Stay in Dorsoduro area for a more authentic experience away from crowds.',
+    locationNote: 'Most magical before 8 AM. Stay in Dorsoduro for authentic local experience.'
   },
   {
     location: 'Bali, Indonesia',
-    locationNote: 'Cultural heart of Indonesia',
-    text: 'Visit Tegalalang Rice Terrace at sunrise. Book a private driver for temple hopping. Try local warungs for authentic Indonesian food. Don\'t miss the water temples!',
+    locationNote: 'Cultural heart of Indonesia. Visit temples early morning for best experience.'
   },
   {
     location: 'Marrakech, Morocco',
-    locationNote: 'A maze of wonders',
-    text: 'Stay in a traditional riad in the medina. Haggle in the souks but always with a smile. Visit Jardin Majorelle early morning. Book a desert tour to Sahara for stargazing.',
+    locationNote: 'A maze of wonders in the medina. Best explored with a local guide.'
   },
   {
     location: 'Banff National Park, Canada',
-    locationNote: 'Wildlife paradise',
-    text: 'Visit Lake Louise at sunrise for mirror reflections. Take the Banff Gondola for mountain views. Drive the Icefields Parkway for incredible landscapes. Watch for wildlife early morning.',
+    locationNote: 'Wildlife paradise. Best photos at sunrise, especially at Lake Louise.'
   },
   {
     location: 'Petra, Jordan',
-    locationNote: 'Ancient wonder',
-    text: 'Buy a Jordan Pass before arriving. Visit Petra by night for a magical experience. Hike to the Monastery early morning to avoid heat. Stay in a Bedouin camp for authentic experience.',
+    locationNote: 'Ancient wonder. Visit early morning to avoid heat and crowds.'
   },
   {
     location: 'Dubrovnik, Croatia',
-    locationNote: 'Kings Landing from GOT',
-    text: 'Walk the city walls at sunset. Take the cable car for panoramic views. Visit nearby islands by ferry. Avoid peak summer months for fewer crowds.',
+    locationNote: 'Famous Kings Landing from GOT. Walk the walls during sunset.'
   },
   {
     location: 'Cape Town, South Africa',
-    locationNote: 'Where mountains meet ocean',
-    text: 'Hike Table Mountain for sunrise. Visit Cape Point early morning. Book wine tours in Stellenbosch. Don\'t miss the penguins at Boulders Beach!',
+    locationNote: 'Where mountains meet ocean. Perfect for hiking and wine tours.'
   },
   {
     location: 'Angkor Wat, Cambodia',
-    locationNote: 'Temple paradise',
-    text: 'Buy a multi-day pass. Start with sunrise at Angkor Wat. Explore Ta Prohm in afternoon light. Hire a knowledgeable guide to understand the history.',
+    locationNote: 'Temple paradise. Start with sunrise at the main temple.'
   },
   {
     location: 'Queenstown, New Zealand',
-    locationNote: 'Adventure capital',
-    text: 'Take the Skyline Gondola for city views. Do the Routeburn Track for hiking. Visit Milford Sound on a clear day. Try the famous Fergburger!',
+    locationNote: 'Adventure capital. Amazing views from Skyline Gondola.'
   },
   {
     location: 'Reykjavik, Iceland',
-    locationNote: 'Land of fire and ice',
-    text: 'Rent a car for Ring Road. Chase northern lights in winter. Visit hot springs early morning. Don\'t miss the Golden Circle route.',
+    locationNote: 'Land of fire and ice. Perfect base for Ring Road adventures.'
   },
   {
     location: 'Havana, Cuba',
-    locationNote: 'Vintage charm',
-    text: 'Stay in a casa particular. Take a classic car tour. Visit Viñales Valley for tobacco farms. Dance salsa at local clubs.',
+    locationNote: 'Vintage charm frozen in time. Best explored in classic cars.'
   }
 ];
 
@@ -98,8 +84,8 @@ async function createGuidePosts() {
         const profile = await Profile.findOne({ userId: creator._id });
         
         for (let i = 0; i < numGuides; i++) {
-          // Get random travel tip
-          const tip = travelTips[Math.floor(Math.random() * travelTips.length)];
+          // Get random location guide
+          const guide = locationGuides[Math.floor(Math.random() * locationGuides.length)];
 
           // Generate random likes and dislikes
           const numLikes = Math.floor(Math.random() * 50); // Random likes 0-49
@@ -126,11 +112,10 @@ async function createGuidePosts() {
             }
           }
 
-          const guide = new Guide({
+          const newGuide = new Guide({
             userId: creator._id,
-            text: tip.text,
-            location: tip.location,
-            locationNote: tip.locationNote,
+            location: guide.location,
+            locationNote: guide.locationNote,
             likes: likedBy.length,
             dislikes: dislikedBy.length,
             likedBy: likedBy,
@@ -138,7 +123,7 @@ async function createGuidePosts() {
             createdAt: new Date(Date.now() - Math.floor(Math.random() * 7776000000)) // Random date within last 90 days
           });
 
-          await guide.save();
+          await newGuide.save();
 
           // Update creator's profile stats
           if (profile) {
@@ -146,7 +131,7 @@ async function createGuidePosts() {
             await profile.save();
           }
 
-          console.log(`Created guide for ${creator.username} about ${tip.location} with ${likedBy.length} likes and ${dislikedBy.length} dislikes`);
+          console.log(`Created guide for ${creator.username} about ${guide.location} with ${likedBy.length} likes and ${dislikedBy.length} dislikes`);
         }
       } catch (error) {
         console.error(`Error creating guides for ${creator.username}:`, error.message);

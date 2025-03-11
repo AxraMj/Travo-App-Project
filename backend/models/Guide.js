@@ -1,14 +1,10 @@
 const mongoose = require('mongoose');
 
 const guideSchema = new mongoose.Schema({
-  text: {
-    type: String,
-    required: true,
-    maxLength: 500
-  },
   location: {
     type: String,
-    maxLength: 100
+    maxLength: 100,
+    required: true
   },
   locationNote: {
     type: String,

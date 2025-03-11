@@ -46,8 +46,6 @@ const GuideCard = ({
             <Text style={styles.locationNote}>{guide.locationNote}</Text>
           )}
 
-          <Text style={styles.guideText}>{guide.text}</Text>
-
           <View style={styles.actions}>
             <TouchableOpacity 
               style={styles.actionButton} 
@@ -146,12 +144,6 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 8,
   },
-  guideText: {
-    color: '#ffffff',
-    fontSize: 16,
-    lineHeight: 22,
-    marginBottom: 12,
-  },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -168,10 +160,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   actionTextActive: {
-    color: '#F91880', // Twitter's like color
+    color: '#F91880',
   },
   actionTextDislike: {
-    color: '#1DA1F2', // Twitter's blue
+    color: '#1DA1F2',
   },
 });
 

@@ -169,8 +169,8 @@ export default function ProfileScreen({ navigation }) {
   }
 
   const handleSubmitGuide = async () => {
-    if (!guideText.trim() || !locationInput.trim()) {
-      Alert.alert('Error', 'Please provide both location and guide text');
+    if (!locationInput.trim()) {
+      Alert.alert('Error', 'Please provide a location');
       return;
     }
 
@@ -178,7 +178,6 @@ export default function ProfileScreen({ navigation }) {
       setIsLoading(true);
       
       const guideData = {
-        text: guideText.trim(),
         location: locationInput.trim(),
         locationNote: locationNoteInput.trim(),
         userId: user.id
@@ -198,7 +197,6 @@ export default function ProfileScreen({ navigation }) {
       };
       
       setGuides(prevGuides => [formattedGuide, ...prevGuides]);
-      setGuideText('');
       setLocationInput('');
       setLocationNoteInput('');
       setIsCreatingGuide(false);
@@ -397,25 +395,15 @@ export default function ProfileScreen({ navigation }) {
               value={locationNoteInput}
               onChangeText={setLocationNoteInput}
             />
-
-            <TextInput
-              style={styles.guideInput}
-              placeholder="Share your travel tips and experiences..."
-              placeholderTextColor="rgba(255,255,255,0.5)"
-              value={guideText}
-              onChangeText={setGuideText}
-              multiline
-              maxLength={500}
-            />
           </View>
 
           <TouchableOpacity 
             style={[
               styles.submitButton,
-              (!guideText.trim() || !locationInput.trim()) && styles.submitButtonDisabled
+              !locationInput.trim() && styles.submitButtonDisabled
             ]}
             onPress={handleSubmitGuide}
-            disabled={!guideText.trim() || !locationInput.trim()}
+            disabled={!locationInput.trim()}
           >
             <Text style={styles.submitButtonText}>Share Guide</Text>
           </TouchableOpacity>
@@ -863,17 +851,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
     fontStyle: 'italic',
-  },
-  guideInput: {
-    color: '#ffffff',
-    fontSize: 16,
-    minHeight: 100,
-    padding: 12,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    textAlignVertical: 'top',
   },
   submitButton: {
     backgroundColor: '#FF6B6B',

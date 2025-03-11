@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 
 exports.createGuide = async (req, res) => {
   try {
-    const { text, location, locationNote } = req.body;
+    const { location, locationNote } = req.body;
     const userId = req.user.userId;
 
     // Get user data
@@ -16,7 +16,6 @@ exports.createGuide = async (req, res) => {
 
     const guide = new Guide({
       userId,
-      text,
       location,
       locationNote,
       likes: 0,
@@ -28,7 +27,6 @@ exports.createGuide = async (req, res) => {
     // Format response with user information
     const formattedGuide = {
       _id: guide._id,
-      text: guide.text,
       location: guide.location,
       locationNote: guide.locationNote,
       username: user.username,
